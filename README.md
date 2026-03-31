@@ -12,7 +12,6 @@ This app scales and positions targets so they appear as if they are located at r
 - Support for different target types:
   - USPSA
   - IPSC
-  - IDPA
   - Steel
 - Target variations:
   - Full size
