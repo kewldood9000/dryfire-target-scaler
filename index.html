@@ -263,6 +263,26 @@
       font-size: 0.95rem;
     }
 
+    .display-head-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+    }
+
+    .bg-picker {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .bg-picker select {
+      min-width: 130px;
+      padding: 5px 8px;
+    }
+
     .display-meta {
       color: var(--muted);
       font-size: 0.8rem;
@@ -465,7 +485,19 @@
     <section class="display" aria-label="Target Display">
       <div class="display-head">
         <strong>Projected Target Display</strong>
-        <div class="display-meta" id="metaReadout"></div>
+        <div class="display-head-right">
+          <label class="bg-picker">
+            Background
+            <select id="backgroundMode">
+              <option value="blank" selected>Blank</option>
+              <option value="flat-range">Flat-Range</option>
+              <option value="mountain">Mountain</option>
+              <option value="tron">Tron</option>
+              <option value="sky">Sky</option>
+            </select>
+          </label>
+          <div class="display-meta" id="metaReadout"></div>
+        </div>
       </div>
       <div class="stage-wrap">
         <div class="stage" id="stage">
@@ -542,6 +574,41 @@
       ]
     };
 
+    const STAGE_BACKGROUNDS = {
+      blank: {
+        fallback: "",
+        imageCandidates: []
+      },
+      "flat-range": {
+        fallback: "#7a5a3a",
+        imageCandidates: [
+          "images/flat-range.png",
+          "./images/flat-range.png"
+        ]
+      },
+      mountain: {
+        fallback: "#9caf88",
+        imageCandidates: [
+          "images/mountain.png",
+          "./images/mountain.png"
+        ]
+      },
+      tron: {
+        fallback: "#ff2ea6",
+        imageCandidates: [
+          "images/tron.png",
+          "./images/tron.png"
+        ]
+      },
+      sky: {
+        fallback: "#7ec8ff",
+        imageCandidates: [
+          "images/sky.png",
+          "./images/sky.png"
+        ]
+      }
+    };
+
     // =====================
     // UI State
     // =====================
@@ -557,10 +624,16 @@
       targets: [],
       spacingMode: "equal",
       customSpacingsIn: [],
-      imageAssetFailures: {}
+      imageAssetFailures: {},
+      backgroundMode: "blank",
+      backgroundResolvedUrl: {},
+      backgroundLoadToken: 0,
+      backgroundLoadState: {}
     };
 
     let targetIdCounter = 1;
+    let activeBackgroundProbe = null;
+    let activeBackgroundProbeMode = null;
 
     // =====================
     // Helpers / Math
@@ -696,6 +769,7 @@
       spacingSection: document.getElementById("spacingSection"),
       spacingMode: document.getElementById("spacingMode"),
       spacingInputs: document.getElementById("spacingInputs"),
+      backgroundMode: document.getElementById("backgroundMode"),
       stage: document.getElementById("stage"),
       alerts: document.getElementById("alerts"),
       metaReadout: document.getElementById("metaReadout"),
@@ -937,8 +1011,14 @@
       state.targets = [];
       state.spacingMode = "equal";
       state.customSpacingsIn = [];
+      state.backgroundMode = "blank";
+      state.backgroundResolvedUrl = {};
+      state.backgroundLoadToken = 0;
+      state.backgroundLoadState = {};
+      cancelBackgroundProbe();
       targetIdCounter = 1;
       renderUI();
+      applySelectedStageBackground();
       recalcAndRender();
     }
 
@@ -1117,11 +1197,118 @@
       }
     }
 
+    function applyBlankStageBackground() {
+      el.stage.style.backgroundImage = [
+        "repeating-linear-gradient(90deg, rgba(79, 84, 92, 0.22) 0, rgba(79, 84, 92, 0.22) 1px, transparent 1px, transparent 80px)",
+        "linear-gradient(180deg, #2b2d31 0%, #1e1f22 100%)"
+      ].join(",");
+      el.stage.style.backgroundColor = "";
+      el.stage.style.backgroundSize = "auto, auto";
+      el.stage.style.backgroundPosition = "0 0, 0 0";
+      el.stage.style.backgroundRepeat = "repeat, no-repeat";
+    }
+
+    function applySolidStageBackground(color) {
+      el.stage.style.backgroundImage = "none";
+      el.stage.style.backgroundColor = color;
+      el.stage.style.backgroundSize = "";
+      el.stage.style.backgroundPosition = "";
+      el.stage.style.backgroundRepeat = "";
+    }
+
+    function applyImageStageBackground(url) {
+      el.stage.style.backgroundImage = `url('${url}')`;
+      el.stage.style.backgroundColor = "";
+      el.stage.style.backgroundSize = "contain";
+      el.stage.style.backgroundPosition = "center";
+      el.stage.style.backgroundRepeat = "no-repeat";
+    }
+
+    function cancelBackgroundProbe() {
+      if (!activeBackgroundProbe) return;
+      if (activeBackgroundProbeMode && state.backgroundLoadState[activeBackgroundProbeMode] === "loading") {
+        delete state.backgroundLoadState[activeBackgroundProbeMode];
+      }
+      activeBackgroundProbe.onload = null;
+      activeBackgroundProbe.onerror = null;
+      activeBackgroundProbe.src = "";
+      activeBackgroundProbe = null;
+      activeBackgroundProbeMode = null;
+    }
+
+    function resolveBackgroundImage(mode, candidates, token) {
+      if (!candidates || candidates.length === 0) return;
+      if (state.backgroundLoadState[mode] === "failed") return;
+      if (state.backgroundLoadState[mode] === "loading") return;
+
+      cancelBackgroundProbe();
+      state.backgroundLoadState[mode] = "loading";
+
+      let idx = 0;
+      const probe = new Image();
+      activeBackgroundProbe = probe;
+      activeBackgroundProbeMode = mode;
+
+      probe.onload = () => {
+        if (state.backgroundLoadToken !== token || state.backgroundMode !== mode) return;
+        state.backgroundResolvedUrl[mode] = candidates[idx];
+        state.backgroundLoadState[mode] = "loaded";
+        applyImageStageBackground(candidates[idx]);
+        activeBackgroundProbe = null;
+        activeBackgroundProbeMode = null;
+      };
+
+      probe.onerror = () => {
+        if (state.backgroundLoadToken !== token || state.backgroundMode !== mode) return;
+        idx += 1;
+        if (idx < candidates.length) {
+          probe.src = candidates[idx];
+          return;
+        }
+        state.backgroundLoadState[mode] = "failed";
+        activeBackgroundProbe = null;
+        activeBackgroundProbeMode = null;
+      };
+
+      probe.src = candidates[idx];
+    }
+
+    function applySelectedStageBackground() {
+      const mode = state.backgroundMode;
+      const cfg = STAGE_BACKGROUNDS[mode] || STAGE_BACKGROUNDS.sky;
+      state.backgroundLoadToken += 1;
+      const token = state.backgroundLoadToken;
+
+      if (mode === "blank") {
+        cancelBackgroundProbe();
+        applyBlankStageBackground();
+        return;
+      }
+
+      const candidates = cfg.imageCandidates || [];
+      const cachedUrl = state.backgroundResolvedUrl[mode];
+      if (cachedUrl) {
+        cancelBackgroundProbe();
+        applyImageStageBackground(cachedUrl);
+        return;
+      }
+
+      if (candidates.length === 0) {
+        cancelBackgroundProbe();
+        applySolidStageBackground(cfg.fallback || "#1e1f22");
+        return;
+      }
+
+      applySolidStageBackground(cfg.fallback || "#1e1f22");
+      resolveBackgroundImage(mode, candidates, token);
+    }
+
     function renderUI() {
       el.viewDistanceIn.value = state.calibration.viewDistanceIn;
       el.monitorDiagonalIn.value = state.calibration.monitorDiagonalIn;
       el.monitorAspectRatio.value = state.calibration.aspectRatio;
       renderResolutionPresetOptions(state.calibration.aspectRatio, state.calibration.resolutionPreset);
+      el.backgroundMode.value = state.backgroundMode;
 
       renderTargetCards();
       renderSpacingControls();
@@ -1344,6 +1531,11 @@
       renderResolutionPresetOptions(nextAspect, currentPreset);
     });
 
+    el.backgroundMode.addEventListener("change", (e) => {
+      state.backgroundMode = e.target.value;
+      applySelectedStageBackground();
+    });
+
     el.updateCalibrationBtn.addEventListener("click", applyCalibrationFromInputs);
     el.addTargetBtn.addEventListener("click", () => addTarget());
     el.resetBtn.addEventListener("click", resetAll);
@@ -1363,6 +1555,7 @@
     window.saveSteelPlateDiameterInches = saveSteelPlateDiameterInches;
     loadPersistedRealWorldTargetSizes();
     renderUI();
+    applySelectedStageBackground();
     recalcAndRender();
   </script>
 </body>
