@@ -376,15 +376,11 @@
       object-position: center;
     }
 
-    .target-overlay-layer {
+    .target-overlay-svg {
       position: absolute;
       inset: 0;
-      pointer-events: none;
-    }
-
-    .target-overlay-piece {
-      position: absolute;
-      inset: 0;
+      width: 100%;
+      height: 100%;
       pointer-events: none;
     }
 
@@ -609,18 +605,76 @@
       ]
     };
 
-    const USPSA_DERIVED_SILHOUETTE = "polygon(31.72% 0%, 67.43% 0%, 67.43% 17.23%, 91.04% 20.67%, 96.16% 24.12%, 99.86% 27.56%, 99.86% 79.24%, 98.15% 82.69%, 95.16% 86.13%, 92.18% 89.58%, 89.19% 93.02%, 86.20% 96.47%, 83.21% 100%, 15.93% 100%, 13.37% 96.47%, 10.38% 93.02%, 7.54% 89.58%, 4.55% 86.13%, 1.71% 82.69%, 0.14% 79.24%, 0.14% 27.56%, 3.41% 24.12%, 8.39% 20.67%, 31.72% 17.23%)";
+    const TARGET_OVERLAY_CANVAS = { width: 1240, height: 2048 };
+    const USPSA_DERIVED_SILHOUETTE_POINTS = [
+      [393, 0],
+      [836, 0],
+      [836, 353],
+      [1129, 423],
+      [1192, 494],
+      [1238, 564],
+      [1238, 1623],
+      [1217, 1693],
+      [1180, 1764],
+      [1143, 1835],
+      [1106, 1905],
+      [1069, 1976],
+      [1032, 2048],
+      [198, 2048],
+      [166, 1976],
+      [129, 1905],
+      [94, 1835],
+      [56, 1764],
+      [21, 1693],
+      [2, 1623],
+      [2, 564],
+      [42, 494],
+      [104, 423],
+      [393, 353]
+    ];
     const USPSA_DERIVED_OVERLAY_POLYGONS = {
-      zebraLeft: "polygon(0% 0%, 16.61% 0%, 16.61% 100%, 0% 100%)",
-      zebraRight: "polygon(83.39% 0%, 100% 0%, 100% 100%, 83.39% 100%)",
-      peekerLeft: "polygon(0% 29.79%, 49.19% 62.99%, 49.19% 100%, 0% 100%)",
-      peekerRight: "polygon(100% 29.79%, 50.81% 62.99%, 50.81% 100%, 100% 100%)",
-      peekerBottom: "polygon(0% 57.32%, 100% 57.32%, 100% 100%, 0% 100%)"
+      zebraLeft: [
+        [0, 0],
+        [206, 0],
+        [206, 2048],
+        [0, 2048]
+      ],
+      zebraRight: [
+        [1034, 0],
+        [1240, 0],
+        [1240, 2048],
+        [1034, 2048]
+      ],
+      peekerLeft: [
+        [0, 610],
+        [610, 1290],
+        [610, 2048],
+        [0, 2048]
+      ],
+      peekerRight: [
+        [1240, 610],
+        [630, 1290],
+        [630, 2048],
+        [1240, 2048]
+      ],
+      peekerBottom: [
+        [0, 1174],
+        [1240, 1174],
+        [1240, 2048],
+        [0, 2048]
+      ],
+      full: [
+        [0, 0],
+        [1240, 0],
+        [1240, 2048],
+        [0, 2048]
+      ]
     };
 
     const TARGET_OVERLAY_DEFINITIONS = {
       uspsa: {
-        silhouette: USPSA_DERIVED_SILHOUETTE,
+        canvas: TARGET_OVERLAY_CANVAS,
+        silhouettePoints: USPSA_DERIVED_SILHOUETTE_POINTS,
         overlays: {
           open: null,
           zebra: {
@@ -663,13 +717,14 @@
           noShoot: {
             fill: "rgba(255, 255, 255, 0.98)",
             polygons: [
-              "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.full
             ]
           }
         }
       },
       idpa: {
-        silhouette: USPSA_DERIVED_SILHOUETTE,
+        canvas: TARGET_OVERLAY_CANVAS,
+        silhouettePoints: USPSA_DERIVED_SILHOUETTE_POINTS,
         overlays: {
           open: null,
           zebra: {
@@ -712,13 +767,14 @@
           noShoot: {
             fill: "rgba(255, 255, 255, 0.98)",
             polygons: [
-              "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.full
             ]
           }
         }
       },
       ipsc: {
-        silhouette: USPSA_DERIVED_SILHOUETTE,
+        canvas: TARGET_OVERLAY_CANVAS,
+        silhouettePoints: USPSA_DERIVED_SILHOUETTE_POINTS,
         overlays: {
           open: null,
           zebra: {
@@ -761,13 +817,14 @@
           noShoot: {
             fill: "rgba(255, 255, 255, 0.98)",
             polygons: [
-              "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.full
             ]
           }
         }
       },
       steel: {
-        silhouette: "circle(50% at 50% 50%)",
+        canvas: { width: 100, height: 100 },
+        silhouettePoints: null,
         overlays: {
           open: null
         }
@@ -830,6 +887,7 @@
     };
 
     let targetIdCounter = 1;
+    let overlayClipPathIdCounter = 1;
 
     // =====================
     // Helpers / Math
@@ -872,6 +930,10 @@
     function getTargetTypeLabel(shape, type) {
       const match = getTargetTypeOptionsForShape(shape).find((option) => option.value === type);
       return match ? match.label : "Open";
+    }
+
+    function pointsToSvgString(points) {
+      return points.map((point) => point.join(",")).join(" ");
     }
 
     function setRealWorldTargetSize(shape, widthIn, heightIn, options = {}) {
@@ -1126,19 +1188,38 @@
       const overlayDef = familyDefs.overlays[type];
       if (!overlayDef) return;
 
-      const overlayLayer = document.createElement("div");
-      overlayLayer.className = "target-overlay-layer";
-      overlayLayer.style.clipPath = familyDefs.silhouette;
+      const ns = "http://www.w3.org/2000/svg";
+      const overlaySvg = document.createElementNS(ns, "svg");
+      const clipId = `target-overlay-clip-${overlayClipPathIdCounter++}`;
+      overlaySvg.setAttribute("class", "target-overlay-svg");
+      overlaySvg.setAttribute("viewBox", `0 0 ${familyDefs.canvas.width} ${familyDefs.canvas.height}`);
+      overlaySvg.setAttribute("preserveAspectRatio", "none");
+      overlaySvg.setAttribute("aria-hidden", "true");
 
-      overlayDef.polygons.forEach((polygon) => {
-        const piece = document.createElement("div");
-        piece.className = "target-overlay-piece";
-        piece.style.background = overlayDef.fill;
-        piece.style.clipPath = polygon;
-        overlayLayer.appendChild(piece);
+      if (familyDefs.silhouettePoints) {
+        const defs = document.createElementNS(ns, "defs");
+        const clipPath = document.createElementNS(ns, "clipPath");
+        clipPath.setAttribute("id", clipId);
+        clipPath.setAttribute("clipPathUnits", "userSpaceOnUse");
+
+        const silhouette = document.createElementNS(ns, "polygon");
+        silhouette.setAttribute("points", pointsToSvgString(familyDefs.silhouettePoints));
+        clipPath.appendChild(silhouette);
+        defs.appendChild(clipPath);
+        overlaySvg.appendChild(defs);
+      }
+
+      overlayDef.polygons.forEach((polygonPoints) => {
+        const piece = document.createElementNS(ns, "polygon");
+        piece.setAttribute("points", pointsToSvgString(polygonPoints));
+        piece.setAttribute("fill", overlayDef.fill);
+        if (familyDefs.silhouettePoints) {
+          piece.setAttribute("clip-path", `url(#${clipId})`);
+        }
+        overlaySvg.appendChild(piece);
       });
 
-      container.appendChild(overlayLayer);
+      container.appendChild(overlaySvg);
     }
 
     // =====================
