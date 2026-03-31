@@ -1,10 +1,1124 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-  <title>USPSA Target Scaler</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dry-Fire Target Visualizer</title>
+  <style>
+    :root {
+      --bg: #0d131f;
+      --panel: #121b2d;
+      --panel-2: #17243a;
+      --text: #e7eefc;
+      --muted: #9eb3d3;
+      --accent: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --line: #2a3a56;
+      --display-bg: #0a0f1a;
+      --shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 12% 12%, #1b2b48 0%, #0d131f 40%),
+        linear-gradient(145deg, #0d131f, #0c1018);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 440px 1fr;
+      gap: 16px;
+      padding: 16px;
+      min-height: 100vh;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      overflow: auto;
+      max-height: calc(100vh - 32px);
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: 1.2rem;
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .section {
+      margin-bottom: 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(10, 14, 24, 0.34);
+    }
+
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    input,
+    select,
+    button {
+      font: inherit;
+    }
+
+    input,
+    select {
+      width: 100%;
+      border: 1px solid #435578;
+      border-radius: 8px;
+      background: #0c1422;
+      color: var(--text);
+      padding: 8px 10px;
+    }
+
+    input:focus,
+    select:focus,
+    button:focus-visible {
+      outline: 2px solid #3b82f6;
+      outline-offset: 1px;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 1px solid #426387;
+      border-radius: 8px;
+      background: #1a2a43;
+      color: var(--text);
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    .btn:hover {
+      filter: brightness(1.1);
+    }
+
+    .btn.primary {
+      background: linear-gradient(180deg, #1ea451, #157c3d);
+      border-color: #0f6f34;
+      color: #f1fff7;
+    }
+
+    .btn.warn {
+      background: linear-gradient(180deg, #b84949, #8c2e2e);
+      border-color: #7b2929;
+      color: #fff7f7;
+    }
+
+    .target-card {
+      margin-top: 10px;
+      border: 1px solid #3f4f6f;
+      border-radius: 10px;
+      background: rgba(18, 30, 49, 0.85);
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .target-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .target-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.01em;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.35;
+      margin-top: 8px;
+    }
+
+    .alerts {
+      display: grid;
+      gap: 8px;
+      margin: 10px 0;
+    }
+
+    .alert {
+      border-radius: 8px;
+      border: 1px solid;
+      padding: 8px 10px;
+      font-size: 0.84rem;
+      line-height: 1.35;
+    }
+
+    .alert.error {
+      border-color: #8f3b3b;
+      background: rgba(129, 36, 36, 0.23);
+      color: #ffd4d4;
+    }
+
+    .alert.warn {
+      border-color: #9a6a21;
+      background: rgba(143, 89, 16, 0.2);
+      color: #ffe2b1;
+    }
+
+    .display {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      background: linear-gradient(180deg, #0b1220 0%, #070d17 100%);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: calc(100vh - 32px);
+      overflow: hidden;
+    }
+
+    .display-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      background: rgba(13, 21, 37, 0.9);
+    }
+
+    .display-head strong {
+      font-size: 0.95rem;
+    }
+
+    .display-meta {
+      color: var(--muted);
+      font-size: 0.8rem;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .stage-wrap {
+      position: relative;
+      padding: 12px;
+      background: var(--display-bg);
+    }
+
+    .stage {
+      width: 100%;
+      height: 100%;
+      min-height: 560px;
+      border: 1px solid #203047;
+      border-radius: 10px;
+      background:
+        repeating-linear-gradient(
+          90deg,
+          rgba(29, 48, 74, 0.35) 0,
+          rgba(29, 48, 74, 0.35) 1px,
+          transparent 1px,
+          transparent 80px
+        ),
+        linear-gradient(180deg, #111b2e 0%, #0b101b 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .axis {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .axis-center {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(203, 213, 225, 0.35);
+    }
+
+    .axis-floor {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 34px;
+      height: 1px;
+      background: rgba(203, 213, 225, 0.3);
+    }
+
+    .stage-target {
+      position: absolute;
+      transform: translateX(-50%);
+      bottom: 34px;
+      display: grid;
+      justify-items: center;
+      gap: 5px;
+    }
+
+    .target-label {
+      font-size: 0.72rem;
+      color: #dbeafe;
+      letter-spacing: 0.01em;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+      white-space: nowrap;
+    }
+
+    .target-svg {
+      display: block;
+      overflow: visible;
+    }
+
+    .target-visual {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .target-visual > img,
+    .target-visual > svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .variant-overlay {
+      position: absolute;
+      background: rgba(235, 235, 235, 0.84);
+      pointer-events: none;
+    }
+
+    .variant-overlay.strong {
+      background: rgba(230, 230, 230, 0.9);
+      border-right: 1px solid rgba(55, 65, 81, 0.92);
+    }
+
+    .display-foot {
+      border-top: 1px solid var(--line);
+      padding: 10px 14px;
+      background: rgba(13, 21, 37, 0.85);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid #263754;
+      text-align: left;
+      padding: 6px 8px;
+      white-space: nowrap;
+    }
+
+    th {
+      color: #b8cae6;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+
+    .empty-note {
+      color: var(--muted);
+      font-size: 0.88rem;
+      padding: 14px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
 </head>
 <body>
-  <h1>USPSA Target Scaler</h1>
-  <p>If you see this, your site works 🎯</p>
+  <main class="app">
+    <aside class="panel" aria-label="Controls">
+      <h1>Dry-Fire Target Visualizer</h1>
+      <p class="subtitle">Desktop-first monitor projection tool for angularly correct dry-fire target display.</p>
+
+      <section class="section" aria-labelledby="calibration-title">
+        <h2 id="calibration-title">Calibration</h2>
+        <div class="grid-2">
+          <label>
+            Viewing Distance (in)
+            <input id="viewDistanceIn" type="number" min="1" step="0.1" value="30" />
+          </label>
+          <label>
+            Monitor Diagonal (in)
+            <input id="monitorDiagonalIn" type="number" min="1" step="0.1" value="27" />
+          </label>
+          <label>
+            Resolution Width (px)
+            <input id="resWidthPx" type="number" min="1" step="1" value="2560" />
+          </label>
+          <label>
+            Resolution Height (px)
+            <input id="resHeightPx" type="number" min="1" step="1" value="1440" />
+          </label>
+        </div>
+        <p class="hint">
+          Accuracy depends on correct monitor size, true screen resolution, browser zoom at 100%, and accurate viewing distance.
+        </p>
+      </section>
+
+      <section class="section" aria-labelledby="targets-title">
+        <h2 id="targets-title">Targets</h2>
+        <div class="row">
+          <button id="addTargetBtn" class="btn primary" type="button">Add Target</button>
+          <button id="resetBtn" class="btn warn" type="button">Reset</button>
+        </div>
+        <div id="targetList" aria-live="polite"></div>
+      </section>
+
+      <section id="spacingSection" class="section hidden" aria-labelledby="spacing-title">
+        <h2 id="spacing-title">Target Spacing</h2>
+        <label>
+          Spacing Mode
+          <select id="spacingMode">
+            <option value="equal">Equal spacing on screen</option>
+            <option value="custom">Custom real-world spacing</option>
+          </select>
+        </label>
+        <div id="spacingInputs" class="grid-2" style="margin-top:10px"></div>
+      </section>
+
+      <div id="alerts" class="alerts" aria-live="polite"></div>
+    </aside>
+
+    <section class="display" aria-label="Target Display">
+      <div class="display-head">
+        <strong>Projected Target Display</strong>
+        <div class="display-meta" id="metaReadout"></div>
+      </div>
+      <div class="stage-wrap">
+        <div class="stage" id="stage">
+          <div class="axis" aria-hidden="true">
+            <div class="axis-center"></div>
+            <div class="axis-floor"></div>
+          </div>
+          <div id="emptyNote" class="empty-note">No targets added yet. Click <strong>Add Target</strong> to begin.</div>
+        </div>
+      </div>
+      <div class="display-foot">
+        <table aria-label="Per-target calculations">
+          <thead>
+            <tr>
+              <th>Target</th>
+              <th>Shape/Type</th>
+              <th>Distance</th>
+              <th>Screen Height</th>
+              <th>Screen Width</th>
+              <th>X Offset</th>
+              <th>Angle</th>
+            </tr>
+          </thead>
+          <tbody id="calcTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // =====================
+    // Target Definitions
+    // =====================
+    const TARGET_DEFS = {
+      USPSA: { widthIn: 18, heightIn: 30, profile: "uspsa" },
+      IPSC: { widthIn: 18, heightIn: 30, profile: "ipsc" },
+      IDPA: { widthIn: 18, heightIn: 30, profile: "idpa" },
+      Steel: { widthIn: 12, heightIn: 20, profile: "steel" }
+    };
+
+    // Add/adjust file names here as you place images in ./images.
+    const TARGET_IMAGE_ASSETS = {
+      USPSA: "images/USPSA.png"
+    };
+
+    const TARGET_TYPES = [
+      "Full Size",
+      "Half Covered by No-Shoot",
+      "Head Only",
+      "Partial"
+    ];
+
+    // =====================
+    // UI State
+    // =====================
+    const state = {
+      calibration: {
+        viewDistanceIn: 30,
+        monitorDiagonalIn: 27,
+        resWidthPx: 2560,
+        resHeightPx: 1440
+      },
+      targets: [],
+      spacingMode: "equal",
+      customSpacingsIn: []
+    };
+
+    let targetIdCounter = 1;
+
+    // =====================
+    // Helpers / Math
+    // =====================
+    const inchesPerYard = 36;
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function toNumber(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : NaN;
+    }
+
+    function round(value, digits = 2) {
+      const p = Math.pow(10, digits);
+      return Math.round(value * p) / p;
+    }
+
+    function computePPI(resW, resH, diagonalIn) {
+      return Math.sqrt(resW * resW + resH * resH) / diagonalIn;
+    }
+
+    function angularSizeRadians(realSizeIn, distanceIn) {
+      return 2 * Math.atan(realSizeIn / (2 * distanceIn));
+    }
+
+    function projectedSizeInches(realSizeIn, targetDistanceIn, viewerDistanceIn) {
+      const ang = angularSizeRadians(realSizeIn, targetDistanceIn);
+      return 2 * viewerDistanceIn * Math.tan(ang / 2);
+    }
+
+    function computeCenteredRealWorldXFromAdjacent(spacingsIn, targetCount) {
+      if (targetCount === 0) return [];
+      const x = new Array(targetCount).fill(0);
+      for (let i = 1; i < targetCount; i += 1) {
+        x[i] = x[i - 1] + spacingsIn[i - 1];
+      }
+      const midpoint = (x[0] + x[targetCount - 1]) / 2;
+      return x.map((v) => v - midpoint);
+    }
+
+    function computeEqualScreenXPositions(targetWidthsPx, stageWidthPx) {
+      const count = targetWidthsPx.length;
+      if (count <= 0) return { xPositions: [], gapPx: 0 };
+
+      const totalTargetWidth = targetWidthsPx.reduce((sum, w) => sum + w, 0);
+      const gapPx = (stageWidthPx - totalTargetWidth) / (count + 1);
+
+      const xPositions = [];
+      let cursor = gapPx;
+      for (let i = 0; i < count; i += 1) {
+        xPositions.push(cursor + targetWidthsPx[i] / 2);
+        cursor += targetWidthsPx[i] + gapPx;
+      }
+
+      return { xPositions, gapPx };
+    }
+
+    // =====================
+    // DOM Handles
+    // =====================
+    const el = {
+      viewDistanceIn: document.getElementById("viewDistanceIn"),
+      monitorDiagonalIn: document.getElementById("monitorDiagonalIn"),
+      resWidthPx: document.getElementById("resWidthPx"),
+      resHeightPx: document.getElementById("resHeightPx"),
+      addTargetBtn: document.getElementById("addTargetBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      targetList: document.getElementById("targetList"),
+      spacingSection: document.getElementById("spacingSection"),
+      spacingMode: document.getElementById("spacingMode"),
+      spacingInputs: document.getElementById("spacingInputs"),
+      stage: document.getElementById("stage"),
+      alerts: document.getElementById("alerts"),
+      metaReadout: document.getElementById("metaReadout"),
+      calcTableBody: document.getElementById("calcTableBody"),
+      emptyNote: document.getElementById("emptyNote")
+    };
+
+    // =====================
+    // Rendering Targets (SVG)
+    // =====================
+    function createTargetVisual(shape, type, widthPx, heightPx, labelText) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "target-visual";
+      wrapper.style.width = `${Math.max(1, widthPx).toFixed(1)}px`;
+      wrapper.style.height = `${Math.max(1, heightPx).toFixed(1)}px`;
+
+      const imagePath = TARGET_IMAGE_ASSETS[shape];
+      if (imagePath) {
+        const img = document.createElement("img");
+        img.alt = `${labelText} ${shape} ${type}`;
+        img.src = imagePath;
+        img.addEventListener("error", () => {
+          wrapper.innerHTML = "";
+          wrapper.appendChild(createTargetSVG(shape, widthPx, heightPx, labelText));
+          appendTypeOverlays(wrapper, type);
+        }, { once: true });
+        wrapper.appendChild(img);
+        appendTypeOverlays(wrapper, type);
+        return wrapper;
+      }
+
+      wrapper.appendChild(createTargetSVG(shape, widthPx, heightPx, labelText));
+      appendTypeOverlays(wrapper, type);
+      return wrapper;
+    }
+
+    function createTargetSVG(shape, widthPx, heightPx, labelText) {
+      const ns = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(ns, "svg");
+      svg.setAttribute("class", "target-svg");
+      svg.setAttribute("width", Math.max(1, widthPx).toFixed(1));
+      svg.setAttribute("height", Math.max(1, heightPx).toFixed(1));
+      svg.setAttribute("viewBox", "0 0 100 160");
+      svg.setAttribute("role", "img");
+      svg.setAttribute("aria-label", `${labelText} ${shape}`);
+
+      const bg = document.createElementNS(ns, "rect");
+      bg.setAttribute("x", "8");
+      bg.setAttribute("y", "4");
+      bg.setAttribute("width", "84");
+      bg.setAttribute("height", "152");
+      bg.setAttribute("rx", shape === "Steel" ? "22" : "8");
+
+      const colorByShape = {
+        USPSA: "#d97706",
+        IPSC: "#0284c7",
+        IDPA: "#7c3aed",
+        Steel: "#9ca3af"
+      };
+
+      const strokeByShape = {
+        USPSA: "#8f4a00",
+        IPSC: "#075985",
+        IDPA: "#4c1d95",
+        Steel: "#52525b"
+      };
+
+      bg.setAttribute("fill", colorByShape[shape] || "#94a3b8");
+      bg.setAttribute("stroke", strokeByShape[shape] || "#334155");
+      bg.setAttribute("stroke-width", "2.5");
+      svg.appendChild(bg);
+
+      if (shape === "USPSA") {
+        const a = document.createElementNS(ns, "rect");
+        a.setAttribute("x", "20");
+        a.setAttribute("y", "25");
+        a.setAttribute("width", "60");
+        a.setAttribute("height", "70");
+        a.setAttribute("fill", "none");
+        a.setAttribute("stroke", "#fff");
+        a.setAttribute("stroke-width", "1.2");
+        svg.appendChild(a);
+      }
+
+      if (shape === "IPSC") {
+        const c = document.createElementNS(ns, "ellipse");
+        c.setAttribute("cx", "50");
+        c.setAttribute("cy", "72");
+        c.setAttribute("rx", "18");
+        c.setAttribute("ry", "25");
+        c.setAttribute("fill", "none");
+        c.setAttribute("stroke", "#fff");
+        c.setAttribute("stroke-width", "1.2");
+        svg.appendChild(c);
+      }
+
+      if (shape === "IDPA") {
+        const p = document.createElementNS(ns, "path");
+        p.setAttribute("d", "M25 34 L75 34 L83 94 L50 132 L17 94 Z");
+        p.setAttribute("fill", "none");
+        p.setAttribute("stroke", "#fff");
+        p.setAttribute("stroke-width", "1.2");
+        svg.appendChild(p);
+      }
+
+      if (shape === "Steel") {
+        const head = document.createElementNS(ns, "circle");
+        head.setAttribute("cx", "50");
+        head.setAttribute("cy", "44");
+        head.setAttribute("r", "14");
+        head.setAttribute("fill", "none");
+        head.setAttribute("stroke", "#fff");
+        head.setAttribute("stroke-width", "1.2");
+        svg.appendChild(head);
+      }
+
+      const center = document.createElementNS(ns, "circle");
+      center.setAttribute("cx", "50");
+      center.setAttribute("cy", "82");
+      center.setAttribute("r", "6.5");
+      center.setAttribute("fill", "rgba(255,255,255,0.35)");
+      center.setAttribute("stroke", "#fff");
+      center.setAttribute("stroke-width", "1");
+      svg.appendChild(center);
+
+      return svg;
+    }
+
+    function appendTypeOverlays(container, type) {
+      if (type === "Full Size") return;
+
+      if (type === "Half Covered by No-Shoot") {
+        const cover = document.createElement("div");
+        cover.className = "variant-overlay strong";
+        cover.style.left = "0";
+        cover.style.top = "0";
+        cover.style.width = "52%";
+        cover.style.height = "100%";
+        container.appendChild(cover);
+        return;
+      }
+
+      if (type === "Head Only") {
+        const mask = document.createElement("div");
+        mask.className = "variant-overlay";
+        mask.style.left = "0";
+        mask.style.right = "0";
+        mask.style.top = "31.25%";
+        mask.style.bottom = "0";
+        container.appendChild(mask);
+        return;
+      }
+
+      if (type === "Partial") {
+        const left = document.createElement("div");
+        left.className = "variant-overlay";
+        left.style.left = "0";
+        left.style.top = "0";
+        left.style.width = "22%";
+        left.style.height = "100%";
+
+        const right = document.createElement("div");
+        right.className = "variant-overlay";
+        right.style.right = "0";
+        right.style.top = "0";
+        right.style.width = "22%";
+        right.style.height = "100%";
+
+        const low = document.createElement("div");
+        low.className = "variant-overlay";
+        low.style.left = "0";
+        low.style.right = "0";
+        low.style.top = "70%";
+        low.style.bottom = "0";
+
+        container.append(left, right, low);
+      }
+    }
+
+    // =====================
+    // UI Builders
+    // =====================
+    function addTarget(defaults = {}) {
+      state.targets.push({
+        id: targetIdCounter++,
+        shape: defaults.shape || "IDPA",
+        type: defaults.type || "Full Size",
+        distanceYd: defaults.distanceYd || 7
+      });
+      syncCustomSpacingLength();
+      renderUI();
+      recalcAndRender();
+    }
+
+    function removeTarget(index) {
+      state.targets.splice(index, 1);
+      syncCustomSpacingLength();
+      renderUI();
+      recalcAndRender();
+    }
+
+    function resetAll() {
+      state.calibration = {
+        viewDistanceIn: 30,
+        monitorDiagonalIn: 27,
+        resWidthPx: 2560,
+        resHeightPx: 1440
+      };
+      state.targets = [];
+      state.spacingMode = "equal";
+      state.customSpacingsIn = [];
+      targetIdCounter = 1;
+      renderUI();
+      recalcAndRender();
+    }
+
+    function syncCustomSpacingLength() {
+      const needed = Math.max(0, state.targets.length - 1);
+      while (state.customSpacingsIn.length < needed) {
+        state.customSpacingsIn.push(36);
+      }
+      while (state.customSpacingsIn.length > needed) {
+        state.customSpacingsIn.pop();
+      }
+    }
+
+    function renderTargetCards() {
+      el.targetList.innerHTML = "";
+
+      state.targets.forEach((target, index) => {
+        const card = document.createElement("article");
+        card.className = "target-card";
+
+        const head = document.createElement("div");
+        head.className = "target-head";
+
+        const title = document.createElement("div");
+        title.className = "target-title";
+        title.textContent = `T${index + 1}`;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn";
+        removeBtn.textContent = "Remove";
+        removeBtn.addEventListener("click", () => removeTarget(index));
+
+        head.append(title, removeBtn);
+
+        const shapeLabel = document.createElement("label");
+        shapeLabel.textContent = "Target Shape";
+        const shapeSelect = document.createElement("select");
+        ["IDPA", "IPSC", "USPSA", "Steel"].forEach((shape) => {
+          const opt = document.createElement("option");
+          opt.value = shape;
+          opt.textContent = shape;
+          if (shape === target.shape) opt.selected = true;
+          shapeSelect.appendChild(opt);
+        });
+        shapeSelect.addEventListener("change", (e) => {
+          target.shape = e.target.value;
+          recalcAndRender();
+        });
+        shapeLabel.appendChild(shapeSelect);
+
+        const typeLabel = document.createElement("label");
+        typeLabel.textContent = "Target Type";
+        const typeSelect = document.createElement("select");
+        TARGET_TYPES.forEach((tt) => {
+          const opt = document.createElement("option");
+          opt.value = tt;
+          opt.textContent = tt;
+          if (tt === target.type) opt.selected = true;
+          typeSelect.appendChild(opt);
+        });
+        typeSelect.addEventListener("change", (e) => {
+          target.type = e.target.value;
+          recalcAndRender();
+        });
+        typeLabel.appendChild(typeSelect);
+
+        const distLabel = document.createElement("label");
+        distLabel.textContent = "Distance (yards)";
+        const distInput = document.createElement("input");
+        distInput.type = "number";
+        distInput.min = "0.1";
+        distInput.step = "0.1";
+        distInput.value = target.distanceYd;
+        distInput.addEventListener("input", (e) => {
+          target.distanceYd = toNumber(e.target.value);
+          recalcAndRender();
+        });
+        distLabel.appendChild(distInput);
+
+        card.append(head, shapeLabel, typeLabel, distLabel);
+        el.targetList.appendChild(card);
+      });
+    }
+
+    function renderSpacingControls() {
+      const show = state.targets.length >= 2;
+      el.spacingSection.classList.toggle("hidden", !show);
+      if (!show) return;
+
+      el.spacingMode.value = state.spacingMode;
+
+      el.spacingInputs.innerHTML = "";
+      if (state.spacingMode !== "custom") return;
+
+      for (let i = 0; i < state.targets.length - 1; i += 1) {
+        const label = document.createElement("label");
+        label.textContent = `Distance between T${i + 1} and T${i + 2} (in)`;
+        const input = document.createElement("input");
+        input.type = "number";
+        input.min = "0";
+        input.step = "0.1";
+        input.value = state.customSpacingsIn[i] ?? 36;
+        input.addEventListener("input", (e) => {
+          state.customSpacingsIn[i] = toNumber(e.target.value);
+          recalcAndRender();
+        });
+        label.appendChild(input);
+        el.spacingInputs.appendChild(label);
+      }
+    }
+
+    function renderUI() {
+      el.viewDistanceIn.value = state.calibration.viewDistanceIn;
+      el.monitorDiagonalIn.value = state.calibration.monitorDiagonalIn;
+      el.resWidthPx.value = state.calibration.resWidthPx;
+      el.resHeightPx.value = state.calibration.resHeightPx;
+
+      renderTargetCards();
+      renderSpacingControls();
+    }
+
+    // =====================
+    // Main Compute + Render
+    // =====================
+    function recalcAndRender() {
+      const errors = [];
+      const warnings = [];
+
+      const viewDistanceIn = toNumber(el.viewDistanceIn.value);
+      const monitorDiagonalIn = toNumber(el.monitorDiagonalIn.value);
+      const resWidthPx = toNumber(el.resWidthPx.value);
+      const resHeightPx = toNumber(el.resHeightPx.value);
+
+      state.calibration = {
+        viewDistanceIn,
+        monitorDiagonalIn,
+        resWidthPx,
+        resHeightPx
+      };
+
+      if (!(viewDistanceIn > 0)) errors.push("Viewing distance must be greater than 0 inches.");
+      if (!(monitorDiagonalIn > 0)) errors.push("Monitor diagonal must be greater than 0 inches.");
+      if (!(resWidthPx > 0) || !(resHeightPx > 0)) errors.push("Screen resolution values must be greater than 0.");
+
+      const distancesIn = state.targets.map((t, i) => {
+        const d = toNumber(t.distanceYd) * inchesPerYard;
+        if (!(d > 0)) errors.push(`T${i + 1}: distance must be greater than 0 yards.`);
+        return d;
+      });
+
+      if (state.spacingMode === "custom") {
+        state.customSpacingsIn.forEach((gap, i) => {
+          if (!(toNumber(gap) >= 0)) {
+            errors.push(`Spacing between T${i + 1} and T${i + 2} must be 0 or greater.`);
+          }
+        });
+      }
+
+      const ppi = errors.length ? NaN : computePPI(resWidthPx, resHeightPx, monitorDiagonalIn);
+      if (!errors.length && !(ppi > 0)) {
+        errors.push("Unable to compute monitor PPI from inputs.");
+      }
+
+      renderAlerts(errors, warnings);
+      el.stage.querySelectorAll(".stage-target").forEach((node) => node.remove());
+      el.calcTableBody.innerHTML = "";
+
+      if (state.targets.length === 0) {
+        el.emptyNote.classList.remove("hidden");
+        el.metaReadout.innerHTML = "";
+        return;
+      }
+      el.emptyNote.classList.add("hidden");
+
+      if (errors.length) {
+        el.metaReadout.innerHTML = "<span>Fix validation errors to render targets.</span>";
+        return;
+      }
+
+      const stageRect = el.stage.getBoundingClientRect();
+      const stageW = stageRect.width;
+      const stageH = stageRect.height;
+      const floorY = stageH - 34;
+
+      const rows = [];
+      let overflowCount = 0;
+
+      const targetProjected = state.targets.map((t, i) => {
+        const def = TARGET_DEFS[t.shape] || TARGET_DEFS.IDPA;
+        const distIn = distancesIn[i];
+
+        const hInOnScreen = projectedSizeInches(def.heightIn, distIn, viewDistanceIn);
+        const wInOnScreen = projectedSizeInches(def.widthIn, distIn, viewDistanceIn);
+
+        const hPx = hInOnScreen * ppi;
+        const wPx = wInOnScreen * ppi;
+
+        return {
+          index: i,
+          label: `T${i + 1}`,
+          shape: t.shape,
+          type: t.type,
+          distanceYd: t.distanceYd,
+          distanceIn: distIn,
+          def,
+          hInOnScreen,
+          wInOnScreen,
+          hPx,
+          wPx,
+          xPx: stageW / 2,
+          xInOnScreen: 0,
+          angleRad: 0
+        };
+      });
+
+      if (state.spacingMode === "equal") {
+        const equalLayout = computeEqualScreenXPositions(
+          targetProjected.map((tp) => tp.wPx),
+          stageW
+        );
+        const xs = equalLayout.xPositions;
+        targetProjected.forEach((tp, i) => {
+          tp.xPx = xs[i];
+          tp.xInOnScreen = (tp.xPx - stageW / 2) / ppi;
+          tp.angleRad = Math.atan(tp.xInOnScreen / viewDistanceIn);
+        });
+        if (equalLayout.gapPx < 0) {
+          warnings.push("Equal spacing requires more width than available; computed equal gaps are negative, so targets will overlap/overflow.");
+        }
+      } else {
+        const realX = computeCenteredRealWorldXFromAdjacent(
+          state.customSpacingsIn.map((v) => toNumber(v)),
+          targetProjected.length
+        );
+
+        targetProjected.forEach((tp, i) => {
+          const angle = Math.atan(realX[i] / tp.distanceIn);
+          const xIn = viewDistanceIn * Math.tan(angle);
+          const xPx = stageW / 2 + xIn * ppi;
+          tp.xPx = xPx;
+          tp.xInOnScreen = xIn;
+          tp.angleRad = angle;
+        });
+      }
+
+      targetProjected.forEach((tp) => {
+        const holder = document.createElement("div");
+        holder.className = "stage-target";
+        holder.style.left = `${tp.xPx}px`;
+        holder.style.bottom = `${stageH - floorY}px`;
+
+        const visual = createTargetVisual(tp.shape, tp.type, tp.wPx, tp.hPx, tp.label);
+
+        const caption = document.createElement("div");
+        caption.className = "target-label";
+        caption.textContent = `${tp.label} | ${round(tp.distanceYd, 1)} yd`;
+
+        holder.append(visual, caption);
+        el.stage.appendChild(holder);
+
+        const halfW = tp.wPx / 2;
+        const left = tp.xPx - halfW;
+        const right = tp.xPx + halfW;
+        if (left < 0 || right > stageW || tp.hPx > floorY) overflowCount += 1;
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${tp.label}</td>
+          <td>${tp.shape} / ${tp.type}</td>
+          <td>${round(tp.distanceYd, 2)} yd</td>
+          <td>${round(tp.hInOnScreen, 2)} in (${round(tp.hPx, 1)} px)</td>
+          <td>${round(tp.wInOnScreen, 2)} in (${round(tp.wPx, 1)} px)</td>
+          <td>${round(tp.xInOnScreen, 2)} in (${round(tp.xPx - stageW / 2, 1)} px)</td>
+          <td>${round((tp.angleRad * 180) / Math.PI, 2)} deg</td>
+        `;
+        rows.push(row);
+      });
+
+      rows.forEach((r) => el.calcTableBody.appendChild(r));
+
+      if (overflowCount > 0) {
+        warnings.push(`${overflowCount} target(s) overflow the current display area. Adjust distances, spacing, or monitor inputs.`);
+      }
+
+      renderAlerts(errors, warnings);
+
+      el.metaReadout.innerHTML = `
+        <span>PPI: <strong>${round(ppi, 2)}</strong></span>
+        <span>Mode: <strong>${state.spacingMode === "equal" ? "Equal Screen Spacing" : "Custom Real-World Spacing"}</strong></span>
+        <span>Targets: <strong>${state.targets.length}</strong></span>
+      `;
+    }
+
+    function renderAlerts(errors, warnings) {
+      el.alerts.innerHTML = "";
+
+      errors.forEach((msg) => {
+        const div = document.createElement("div");
+        div.className = "alert error";
+        div.textContent = msg;
+        el.alerts.appendChild(div);
+      });
+
+      warnings.forEach((msg) => {
+        const div = document.createElement("div");
+        div.className = "alert warn";
+        div.textContent = msg;
+        el.alerts.appendChild(div);
+      });
+    }
+
+    // =====================
+    // Events
+    // =====================
+    [
+      el.viewDistanceIn,
+      el.monitorDiagonalIn,
+      el.resWidthPx,
+      el.resHeightPx
+    ].forEach((input) => {
+      input.addEventListener("input", recalcAndRender);
+    });
+
+    el.addTargetBtn.addEventListener("click", () => addTarget());
+    el.resetBtn.addEventListener("click", resetAll);
+
+    el.spacingMode.addEventListener("change", (e) => {
+      state.spacingMode = e.target.value;
+      renderSpacingControls();
+      recalcAndRender();
+    });
+
+    window.addEventListener("resize", recalcAndRender);
+
+    // =====================
+    // Init
+    // =====================
+    renderUI();
+    recalcAndRender();
+  </script>
 </body>
 </html>
