@@ -67,7 +67,7 @@
       padding: 12px;
       border: 1px solid var(--line);
       border-radius: 10px;
-      background: rgba(10, 14, 24, 0.34);
+      background: rgba(43, 45, 49, 0.82);
     }
 
     .section h2 {
@@ -154,7 +154,7 @@
       margin-top: 10px;
       border: 1px solid #4e5259;
       border-radius: 10px;
-      background: rgba(30, 31, 34, 0.88);
+      background: rgba(43, 45, 49, 0.94);
       padding: 10px;
       display: grid;
       gap: 8px;
@@ -323,15 +323,6 @@
       pointer-events: none;
     }
 
-    .axis-center {
-      position: absolute;
-      left: 50%;
-      top: 0;
-      bottom: 0;
-      width: 1px;
-      background: rgba(203, 213, 225, 0.35);
-    }
-
     .stage-target {
       position: absolute;
       transform: translate(-50%, -50%);
@@ -492,8 +483,8 @@
               <option value="blank" selected>Blank</option>
               <option value="flat-range">Flat-Range</option>
               <option value="mountain">Mountain</option>
-              <option value="tron">Tron</option>
               <option value="sky">Sky</option>
+              <option value="tron">Tron</option>
             </select>
           </label>
           <div class="display-meta" id="metaReadout"></div>
@@ -502,7 +493,6 @@
       <div class="stage-wrap">
         <div class="stage" id="stage">
           <div class="axis" aria-hidden="true">
-            <div class="axis-center"></div>
           </div>
           <div id="emptyNote" class="empty-note">No targets added yet. Click <strong>Add Target</strong> to begin.</div>
         </div>
@@ -1219,7 +1209,7 @@
     function applyImageStageBackground(url) {
       el.stage.style.backgroundImage = `url('${url}')`;
       el.stage.style.backgroundColor = "";
-      el.stage.style.backgroundSize = "contain";
+      el.stage.style.backgroundSize = "cover";
       el.stage.style.backgroundPosition = "center";
       el.stage.style.backgroundRepeat = "no-repeat";
     }
