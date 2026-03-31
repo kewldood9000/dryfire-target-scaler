@@ -23,9 +23,15 @@
       box-sizing: border-box;
     }
 
+    html,
     body {
       margin: 0;
+      padding: 0;
       min-height: 100vh;
+      overflow: hidden;
+    }
+
+    body {
       font-family: "Segoe UI", "Trebuchet MS", sans-serif;
       color: var(--text);
       background: linear-gradient(145deg, #1e1f22, #1a1b1e);
@@ -603,46 +609,55 @@
       ]
     };
 
+    const USPSA_DERIVED_SILHOUETTE = "polygon(31.72% 0%, 67.43% 0%, 67.43% 17.23%, 91.04% 20.67%, 96.16% 24.12%, 99.86% 27.56%, 99.86% 79.24%, 98.15% 82.69%, 95.16% 86.13%, 92.18% 89.58%, 89.19% 93.02%, 86.20% 96.47%, 83.21% 100%, 15.93% 100%, 13.37% 96.47%, 10.38% 93.02%, 7.54% 89.58%, 4.55% 86.13%, 1.71% 82.69%, 0.14% 79.24%, 0.14% 27.56%, 3.41% 24.12%, 8.39% 20.67%, 31.72% 17.23%)";
+    const USPSA_DERIVED_OVERLAY_POLYGONS = {
+      zebraLeft: "polygon(0% 0%, 16.61% 0%, 16.61% 100%, 0% 100%)",
+      zebraRight: "polygon(83.39% 0%, 100% 0%, 100% 100%, 83.39% 100%)",
+      peekerLeft: "polygon(0% 29.79%, 49.19% 62.99%, 49.19% 100%, 0% 100%)",
+      peekerRight: "polygon(100% 29.79%, 50.81% 62.99%, 50.81% 100%, 100% 100%)",
+      peekerBottom: "polygon(0% 57.32%, 100% 57.32%, 100% 100%, 0% 100%)"
+    };
+
     const TARGET_OVERLAY_DEFINITIONS = {
       uspsa: {
-        silhouette: "polygon(31.72% 0%, 67.43% 0%, 67.43% 17.23%, 91.04% 20.67%, 96.16% 24.12%, 99.86% 27.56%, 99.86% 79.24%, 98.15% 82.69%, 95.16% 86.13%, 92.18% 89.58%, 89.19% 93.02%, 86.20% 96.47%, 83.21% 100%, 15.93% 100%, 13.37% 96.47%, 10.38% 93.02%, 7.54% 89.58%, 4.55% 86.13%, 1.71% 82.69%, 0.14% 79.24%, 0.14% 27.56%, 3.41% 24.12%, 8.39% 20.67%, 31.72% 17.23%)",
+        silhouette: USPSA_DERIVED_SILHOUETTE,
         overlays: {
           open: null,
           zebra: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(0% 0%, 33.34% 0%, 33.34% 100%, 0% 100%)",
-              "polygon(66.66% 0%, 100% 0%, 100% 100%, 66.66% 100%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.zebraLeft,
+              USPSA_DERIVED_OVERLAY_POLYGONS.zebraRight
             ]
           },
           halfZebraLeft: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(0% 0%, 33.34% 0%, 33.34% 100%, 0% 100%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.zebraLeft
             ]
           },
           halfZebraRight: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(66.66% 0%, 100% 0%, 100% 100%, 66.66% 100%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.zebraRight
             ]
           },
           peekerLeft: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(0% 28%, 10% 18%, 74% 71%, 88% 82%, 80% 100%, 14% 100%, 0% 82%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.peekerLeft
             ]
           },
           peekerRight: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(90% 18%, 100% 28%, 100% 82%, 86% 100%, 20% 100%, 12% 82%, 26% 71%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.peekerRight
             ]
           },
           peekerBottom: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(0% 57.33%, 100% 57.33%, 100% 82%, 83% 100%, 17% 100%, 0% 82%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.peekerBottom
             ]
           },
           noShoot: {
@@ -654,44 +669,44 @@
         }
       },
       idpa: {
-        silhouette: "polygon(31.72% 0%, 67.43% 0%, 67.43% 17.23%, 91.04% 20.67%, 96.16% 24.12%, 99.86% 27.56%, 99.86% 79.24%, 98.15% 82.69%, 95.16% 86.13%, 92.18% 89.58%, 89.19% 93.02%, 86.20% 96.47%, 83.21% 100%, 15.93% 100%, 13.37% 96.47%, 10.38% 93.02%, 7.54% 89.58%, 4.55% 86.13%, 1.71% 82.69%, 0.14% 79.24%, 0.14% 27.56%, 3.41% 24.12%, 8.39% 20.67%, 31.72% 17.23%)",
+        silhouette: USPSA_DERIVED_SILHOUETTE,
         overlays: {
           open: null,
           zebra: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(0% 0%, 33.34% 0%, 33.34% 100%, 0% 100%)",
-              "polygon(66.66% 0%, 100% 0%, 100% 100%, 66.66% 100%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.zebraLeft,
+              USPSA_DERIVED_OVERLAY_POLYGONS.zebraRight
             ]
           },
           halfZebraLeft: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(0% 0%, 33.34% 0%, 33.34% 100%, 0% 100%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.zebraLeft
             ]
           },
           halfZebraRight: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(66.66% 0%, 100% 0%, 100% 100%, 66.66% 100%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.zebraRight
             ]
           },
           peekerLeft: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(0% 28%, 10% 18%, 74% 71%, 88% 82%, 80% 100%, 14% 100%, 0% 82%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.peekerLeft
             ]
           },
           peekerRight: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(90% 18%, 100% 28%, 100% 82%, 86% 100%, 20% 100%, 12% 82%, 26% 71%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.peekerRight
             ]
           },
           peekerBottom: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(0% 57.33%, 100% 57.33%, 100% 82%, 83% 100%, 17% 100%, 0% 82%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.peekerBottom
             ]
           },
           noShoot: {
@@ -703,44 +718,44 @@
         }
       },
       ipsc: {
-        silhouette: "polygon(35% 0%, 65% 0%, 65% 17%, 84% 17%, 100% 30%, 100% 81%, 81% 100%, 19% 100%, 0% 81%, 0% 30%, 35% 17%)",
+        silhouette: USPSA_DERIVED_SILHOUETTE,
         overlays: {
           open: null,
           zebra: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(0% 18%, 28% 18%, 40% 32%, 40% 83%, 28% 100%, 0% 100%)",
-              "polygon(72% 18%, 100% 18%, 100% 100%, 72% 100%, 60% 83%, 60% 32%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.zebraLeft,
+              USPSA_DERIVED_OVERLAY_POLYGONS.zebraRight
             ]
           },
           zebraLeft: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(0% 18%, 28% 18%, 40% 32%, 40% 83%, 28% 100%, 0% 100%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.zebraLeft
             ]
           },
           zebraRight: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(72% 18%, 100% 18%, 100% 100%, 72% 100%, 60% 83%, 60% 32%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.zebraRight
             ]
           },
           peekerLeft: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(0% 27%, 11% 18%, 75% 71%, 89% 82%, 81% 100%, 15% 100%, 0% 83%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.peekerLeft
             ]
           },
           peekerRight: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(89% 18%, 100% 27%, 100% 83%, 85% 100%, 19% 100%, 11% 82%, 25% 71%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.peekerRight
             ]
           },
           peekerBottom: {
             fill: "rgba(0, 0, 0, 0.96)",
             polygons: [
-              "polygon(0% 72%, 100% 72%, 100% 83%, 81% 100%, 19% 100%, 0% 83%)"
+              USPSA_DERIVED_OVERLAY_POLYGONS.peekerBottom
             ]
           },
           noShoot: {
@@ -1042,8 +1057,6 @@
         plate.setAttribute("cy", "50");
         plate.setAttribute("r", "47");
         plate.setAttribute("fill", TARGET_FILL_BY_SHAPE[shape] || "#94a3b8");
-        plate.setAttribute("stroke", TARGET_STROKE_BY_SHAPE[shape] || "#334155");
-        plate.setAttribute("stroke-width", "2.5");
         svg.appendChild(plate);
       } else {
         const bg = document.createElementNS(ns, "rect");
@@ -1407,10 +1420,10 @@
       el.stage.style.backgroundRepeat = "";
     }
 
-    function applyImageStageBackground(url, fallbackColor, size = "100% auto") {
+    function applyImageStageBackground(url, fallbackColor) {
       el.stage.style.backgroundImage = `url('${url}')`;
       el.stage.style.backgroundColor = fallbackColor || "#1e1f22";
-      el.stage.style.backgroundSize = size;
+      el.stage.style.backgroundSize = "cover";
       el.stage.style.backgroundPosition = "center";
       el.stage.style.backgroundRepeat = "no-repeat";
     }
@@ -1429,8 +1442,7 @@
         return;
       }
 
-      const backgroundSize = mode === "flat-range" ? "100% 110%" : "100% auto";
-      applyImageStageBackground(cfg.imageUrl, cfg.fallback, backgroundSize);
+      applyImageStageBackground(cfg.imageUrl, cfg.fallback);
     }
 
     function renderUI() {
