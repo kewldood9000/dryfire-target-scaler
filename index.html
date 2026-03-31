@@ -1185,10 +1185,10 @@
       el.stage.style.backgroundRepeat = "";
     }
 
-    function applyImageStageBackground(url, fallbackColor) {
+    function applyImageStageBackground(url, fallbackColor, size = "100% auto") {
       el.stage.style.backgroundImage = `url('${url}')`;
       el.stage.style.backgroundColor = fallbackColor || "#1e1f22";
-      el.stage.style.backgroundSize = "100% auto";
+      el.stage.style.backgroundSize = size;
       el.stage.style.backgroundPosition = "center";
       el.stage.style.backgroundRepeat = "no-repeat";
     }
@@ -1207,7 +1207,8 @@
         return;
       }
 
-      applyImageStageBackground(cfg.imageUrl, cfg.fallback);
+      const backgroundSize = mode === "flat-range" ? "100% 110%" : "100% auto";
+      applyImageStageBackground(cfg.imageUrl, cfg.fallback, backgroundSize);
     }
 
     function renderUI() {
