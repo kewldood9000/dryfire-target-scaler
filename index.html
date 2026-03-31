@@ -533,10 +533,9 @@
     const TARGET_DEFS = {
       USPSA: { widthIn: 18.12, heightIn: 29.93, profile: "uspsa" },
       IPSC: { widthIn: 18, heightIn: 30, profile: "ipsc" },
-      IDPA: { widthIn: 18, heightIn: 30, profile: "idpa" },
       "8 Inch Steel Plate": { widthIn: 8, heightIn: 8, profile: "steel_plate", shapeKind: "circle" }
     };
-    const TARGET_SHAPE_OPTIONS = ["USPSA", "IPSC", "IDPA", "8 Inch Steel Plate"];
+    const TARGET_SHAPE_OPTIONS = ["USPSA", "IPSC", "8 Inch Steel Plate"];
     const DISTANCE_UNIT_OPTIONS = [
       { value: "yd", text: "Yards" },
       { value: "m", text: "Meters" }
@@ -544,19 +543,16 @@
     const TARGET_FILL_BY_SHAPE = {
       USPSA: "#d97706",
       IPSC: "#0284c7",
-      IDPA: "#7c3aed",
       "8 Inch Steel Plate": "#9ca3af"
     };
     const TARGET_STROKE_BY_SHAPE = {
       USPSA: "#8f4a00",
       IPSC: "#075985",
-      IDPA: "#4c1d95",
       "8 Inch Steel Plate": "#52525b"
     };
     const TARGET_SIZE_STORAGE_KEY = "dryfire_target_real_world_sizes_v1";
     const TARGET_FAMILY_BY_SHAPE = {
       USPSA: "uspsa",
-      IDPA: "idpa",
       IPSC: "ipsc",
       "8 Inch Steel Plate": "steel"
     };
@@ -574,15 +570,6 @@
 
     const TARGET_TYPE_OPTIONS_BY_FAMILY = {
       uspsa: [
-        { value: "open", label: "Open" },
-        { value: "zebra", label: "Zebra" },
-        { value: "halfZebraLeft", label: "Half-Zebra (Left)" },
-        { value: "halfZebraRight", label: "Half-Zebra (Right)" },
-        { value: "peekerLeft", label: "Peeker (Left)" },
-        { value: "peekerRight", label: "Peeker (Right)" },
-        { value: "peekerBottom", label: "Peeker (Bottom)" }
-      ],
-      idpa: [
         { value: "open", label: "Open" },
         { value: "zebra", label: "Zebra" },
         { value: "halfZebraLeft", label: "Half-Zebra (Left)" },
@@ -648,18 +635,18 @@
       peekerLeft: [
         [0, 610],
         [610, 1290],
-        [610, 2048],
+        [1240, 2048],
         [0, 2048]
       ],
       peekerRight: [
         [1240, 610],
         [630, 1290],
-        [630, 2048],
+        [0, 2048],
         [1240, 2048]
       ],
       peekerBottom: [
-        [0, 1174],
-        [1240, 1174],
+        [0, 1290],
+        [1240, 1290],
         [1240, 2048],
         [0, 2048]
       ],
@@ -673,56 +660,6 @@
 
     const TARGET_OVERLAY_DEFINITIONS = {
       uspsa: {
-        canvas: TARGET_OVERLAY_CANVAS,
-        silhouettePoints: USPSA_DERIVED_SILHOUETTE_POINTS,
-        overlays: {
-          open: null,
-          zebra: {
-            fill: "rgba(0, 0, 0, 0.96)",
-            polygons: [
-              USPSA_DERIVED_OVERLAY_POLYGONS.zebraLeft,
-              USPSA_DERIVED_OVERLAY_POLYGONS.zebraRight
-            ]
-          },
-          halfZebraLeft: {
-            fill: "rgba(0, 0, 0, 0.96)",
-            polygons: [
-              USPSA_DERIVED_OVERLAY_POLYGONS.zebraLeft
-            ]
-          },
-          halfZebraRight: {
-            fill: "rgba(0, 0, 0, 0.96)",
-            polygons: [
-              USPSA_DERIVED_OVERLAY_POLYGONS.zebraRight
-            ]
-          },
-          peekerLeft: {
-            fill: "rgba(0, 0, 0, 0.96)",
-            polygons: [
-              USPSA_DERIVED_OVERLAY_POLYGONS.peekerLeft
-            ]
-          },
-          peekerRight: {
-            fill: "rgba(0, 0, 0, 0.96)",
-            polygons: [
-              USPSA_DERIVED_OVERLAY_POLYGONS.peekerRight
-            ]
-          },
-          peekerBottom: {
-            fill: "rgba(0, 0, 0, 0.96)",
-            polygons: [
-              USPSA_DERIVED_OVERLAY_POLYGONS.peekerBottom
-            ]
-          },
-          noShoot: {
-            fill: "rgba(255, 255, 255, 0.98)",
-            polygons: [
-              USPSA_DERIVED_OVERLAY_POLYGONS.full
-            ]
-          }
-        }
-      },
-      idpa: {
         canvas: TARGET_OVERLAY_CANVAS,
         silhouettePoints: USPSA_DERIVED_SILHOUETTE_POINTS,
         overlays: {
@@ -1155,15 +1092,6 @@
         c.setAttribute("stroke", "#fff");
         c.setAttribute("stroke-width", "1.2");
         svg.appendChild(c);
-      }
-
-      if (shape === "IDPA") {
-        const p = document.createElementNS(ns, "path");
-        p.setAttribute("d", "M25 34 L75 34 L83 94 L50 132 L17 94 Z");
-        p.setAttribute("fill", "none");
-        p.setAttribute("stroke", "#fff");
-        p.setAttribute("stroke-width", "1.2");
-        svg.appendChild(p);
       }
 
       if (shape !== "8 Inch Steel Plate") {
@@ -1618,7 +1546,7 @@
       const tableFragment = document.createDocumentFragment();
 
       const targetProjected = state.targets.map((t, i) => {
-        const def = TARGET_DEFS[t.shape] || TARGET_DEFS.IDPA;
+        const def = TARGET_DEFS[t.shape] || TARGET_DEFS.USPSA;
         const distIn = distancesIn[i];
         const aspectRatio = def.widthIn / def.heightIn;
 
