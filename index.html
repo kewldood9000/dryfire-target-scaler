@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -465,8 +465,14 @@
     };
 
     // Add/adjust file names here as you place images in ./images.
+    // You can provide either a single string path or an array of candidate paths.
     const TARGET_IMAGE_ASSETS = {
-      USPSA: "images/USPSA.jpg"
+      USPSA: [
+        "images/USPSA.png",
+        "images/uspsa.png",
+        "./images/USPSA.png",
+        "./images/uspsa.png"
+      ]
     };
 
     const TARGET_TYPES = [
@@ -488,7 +494,8 @@
       },
       targets: [],
       spacingMode: "equal",
-      customSpacingsIn: []
+      customSpacingsIn: [],
+      imageAssetFailures: {}
     };
 
     let targetIdCounter = 1;
@@ -582,16 +589,30 @@
       wrapper.style.width = `${Math.max(1, widthPx).toFixed(1)}px`;
       wrapper.style.height = `${Math.max(1, heightPx).toFixed(1)}px`;
 
-      const imagePath = TARGET_IMAGE_ASSETS[shape];
-      if (imagePath) {
+      const assetConfig = TARGET_IMAGE_ASSETS[shape];
+      const imageCandidates = Array.isArray(assetConfig) ? assetConfig : (assetConfig ? [assetConfig] : []);
+      if (imageCandidates.length > 0 && !state.imageAssetFailures[shape]) {
         const img = document.createElement("img");
         img.alt = `${labelText} ${shape} ${type}`;
-        img.src = imagePath;
+        let idx = 0;
+        img.src = imageCandidates[idx];
+
+        img.addEventListener("load", () => {
+          delete state.imageAssetFailures[shape];
+        }, { once: true });
+
         img.addEventListener("error", () => {
+          idx += 1;
+          if (idx < imageCandidates.length) {
+            img.src = imageCandidates[idx];
+            return;
+          }
+          state.imageAssetFailures[shape] = imageCandidates.slice();
           wrapper.innerHTML = "";
           wrapper.appendChild(createTargetSVG(shape, widthPx, heightPx, labelText));
           appendTypeOverlays(wrapper, type);
-        }, { once: true });
+        });
+
         wrapper.appendChild(img);
         appendTypeOverlays(wrapper, type);
         return wrapper;
@@ -937,6 +958,10 @@
           }
         });
       }
+
+      Object.entries(state.imageAssetFailures).forEach(([shape, attempted]) => {
+        warnings.push(`${shape} image not found. Attempted: ${attempted.join(", ")}. Using built-in vector fallback.`);
+      });
 
       const ppi = errors.length ? NaN : computePPI(resWidthPx, resHeightPx, monitorDiagonalIn);
       if (!errors.length && !(ppi > 0)) {
