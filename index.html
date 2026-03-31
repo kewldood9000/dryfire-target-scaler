@@ -273,25 +273,17 @@
       background: rgba(203, 213, 225, 0.35);
     }
 
-    .axis-floor {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 34px;
-      height: 1px;
-      background: rgba(203, 213, 225, 0.3);
-    }
-
     .stage-target {
       position: absolute;
-      transform: translateX(-50%);
-      bottom: 34px;
-      display: grid;
-      justify-items: center;
-      gap: 5px;
+      transform: translate(-50%, -50%);
+      display: block;
     }
 
     .target-label {
+      position: absolute;
+      left: 50%;
+      top: calc(100% + 5px);
+      transform: translateX(-50%);
       font-size: 0.72rem;
       color: #dbeafe;
       letter-spacing: 0.01em;
@@ -396,6 +388,9 @@
             <input id="resHeightPx" type="number" min="1" step="1" value="1440" />
           </label>
         </div>
+        <div class="row" style="margin-top:10px">
+          <button id="updateCalibrationBtn" class="btn primary" type="button">Update Calibration</button>
+        </div>
         <p class="hint">
           Accuracy depends on correct monitor size, true screen resolution, browser zoom at 100%, and accurate viewing distance.
         </p>
@@ -434,7 +429,6 @@
         <div class="stage" id="stage">
           <div class="axis" aria-hidden="true">
             <div class="axis-center"></div>
-            <div class="axis-floor"></div>
           </div>
           <div id="emptyNote" class="empty-note">No targets added yet. Click <strong>Add Target</strong> to begin.</div>
         </div>
@@ -466,16 +460,21 @@
       USPSA: { widthIn: 18.12, heightIn: 29.93, profile: "uspsa" },
       IPSC: { widthIn: 18, heightIn: 30, profile: "ipsc" },
       IDPA: { widthIn: 18, heightIn: 30, profile: "idpa" },
-      Steel: { widthIn: 12, heightIn: 20, profile: "steel" }
+      "8 Inch Steel Plate": { widthIn: 8, heightIn: 8, profile: "steel_plate", shapeKind: "circle" }
     };
+    const TARGET_SIZE_STORAGE_KEY = "dryfire_target_real_world_sizes_v1";
 
     // Add/adjust file names here as you place images in ./images.
     // You can provide either a single string path or an array of candidate paths.
     const TARGET_IMAGE_ASSETS = {
       USPSA: [
-        "images/USPSA.png",
+        "images/uspsa.jpg",
+        "./images/uspsa.jpg",
+        "images/USPSA.jpg",
+        "./images/USPSA.jpg",
+        "images/uspsa.jpeg",
+        "./images/uspsa.jpeg",
         "images/uspsa.png",
-        "./images/USPSA.png",
         "./images/uspsa.png"
       ]
     };
@@ -509,6 +508,7 @@
     // Helpers / Math
     // =====================
     const inchesPerYard = 36;
+    const inchesPerMeter = 39.37007874015748;
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
@@ -524,8 +524,67 @@
       return Math.round(value * p) / p;
     }
 
+    function setRealWorldTargetSize(shape, widthIn, heightIn, options = {}) {
+      const { persist = true, reRender = true } = options;
+      const w = toNumber(widthIn);
+      const h = toNumber(heightIn);
+      if (!TARGET_DEFS[shape]) return false;
+      if (!(w > 0) || !(h > 0)) return false;
+      TARGET_DEFS[shape].widthIn = w;
+      TARGET_DEFS[shape].heightIn = h;
+      if (persist) persistRealWorldTargetSizes();
+      if (reRender) recalcAndRender();
+      return true;
+    }
+
+    function saveRealWorldTargetSize(shape, widthIn, heightIn) {
+      return setRealWorldTargetSize(shape, widthIn, heightIn, { persist: true, reRender: true });
+    }
+
+    function saveSteelPlateDiameterInches(diameterIn) {
+      const d = toNumber(diameterIn);
+      if (!(d > 0)) return false;
+      return saveRealWorldTargetSize("8 Inch Steel Plate", d, d);
+    }
+
+    function persistRealWorldTargetSizes() {
+      const payload = {};
+      Object.keys(TARGET_DEFS).forEach((shape) => {
+        payload[shape] = {
+          widthIn: TARGET_DEFS[shape].widthIn,
+          heightIn: TARGET_DEFS[shape].heightIn
+        };
+      });
+      try {
+        localStorage.setItem(TARGET_SIZE_STORAGE_KEY, JSON.stringify(payload));
+      } catch (_) {
+        // If storage is unavailable, keep current in-memory values.
+      }
+    }
+
+    function loadPersistedRealWorldTargetSizes() {
+      try {
+        const raw = localStorage.getItem(TARGET_SIZE_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        Object.keys(parsed).forEach((shape) => {
+          const entry = parsed[shape];
+          if (!entry) return;
+          setRealWorldTargetSize(shape, entry.widthIn, entry.heightIn, { persist: false, reRender: false });
+        });
+      } catch (_) {
+        // Ignore malformed or inaccessible storage.
+      }
+    }
+
     function computePPI(resW, resH, diagonalIn) {
       return Math.sqrt(resW * resW + resH * resH) / diagonalIn;
+    }
+
+    function distanceToInches(distanceValue, distanceUnit) {
+      const d = toNumber(distanceValue);
+      if (distanceUnit === "m") return d * inchesPerMeter;
+      return d * inchesPerYard;
     }
 
     function angularSizeRadians(realSizeIn, distanceIn) {
@@ -574,6 +633,7 @@
       resHeightPx: document.getElementById("resHeightPx"),
       addTargetBtn: document.getElementById("addTargetBtn"),
       resetBtn: document.getElementById("resetBtn"),
+      updateCalibrationBtn: document.getElementById("updateCalibrationBtn"),
       targetList: document.getElementById("targetList"),
       spacingSection: document.getElementById("spacingSection"),
       spacingMode: document.getElementById("spacingMode"),
@@ -638,31 +698,41 @@
       svg.setAttribute("role", "img");
       svg.setAttribute("aria-label", `${labelText} ${shape}`);
 
-      const bg = document.createElementNS(ns, "rect");
-      bg.setAttribute("x", "8");
-      bg.setAttribute("y", "4");
-      bg.setAttribute("width", "84");
-      bg.setAttribute("height", "152");
-      bg.setAttribute("rx", shape === "Steel" ? "22" : "8");
-
       const colorByShape = {
         USPSA: "#d97706",
         IPSC: "#0284c7",
         IDPA: "#7c3aed",
-        Steel: "#9ca3af"
+        "8 Inch Steel Plate": "#9ca3af"
       };
 
       const strokeByShape = {
         USPSA: "#8f4a00",
         IPSC: "#075985",
         IDPA: "#4c1d95",
-        Steel: "#52525b"
+        "8 Inch Steel Plate": "#52525b"
       };
 
-      bg.setAttribute("fill", colorByShape[shape] || "#94a3b8");
-      bg.setAttribute("stroke", strokeByShape[shape] || "#334155");
-      bg.setAttribute("stroke-width", "2.5");
-      svg.appendChild(bg);
+      if (shape === "8 Inch Steel Plate") {
+        const plate = document.createElementNS(ns, "circle");
+        plate.setAttribute("cx", "50");
+        plate.setAttribute("cy", "80");
+        plate.setAttribute("r", "40");
+        plate.setAttribute("fill", colorByShape[shape] || "#94a3b8");
+        plate.setAttribute("stroke", strokeByShape[shape] || "#334155");
+        plate.setAttribute("stroke-width", "2.5");
+        svg.appendChild(plate);
+      } else {
+        const bg = document.createElementNS(ns, "rect");
+        bg.setAttribute("x", "8");
+        bg.setAttribute("y", "4");
+        bg.setAttribute("width", "84");
+        bg.setAttribute("height", "152");
+        bg.setAttribute("rx", "8");
+        bg.setAttribute("fill", colorByShape[shape] || "#94a3b8");
+        bg.setAttribute("stroke", strokeByShape[shape] || "#334155");
+        bg.setAttribute("stroke-width", "2.5");
+        svg.appendChild(bg);
+      }
 
       if (shape === "USPSA") {
         const a = document.createElementNS(ns, "rect");
@@ -697,25 +767,16 @@
         svg.appendChild(p);
       }
 
-      if (shape === "Steel") {
-        const head = document.createElementNS(ns, "circle");
-        head.setAttribute("cx", "50");
-        head.setAttribute("cy", "44");
-        head.setAttribute("r", "14");
-        head.setAttribute("fill", "none");
-        head.setAttribute("stroke", "#fff");
-        head.setAttribute("stroke-width", "1.2");
-        svg.appendChild(head);
+      if (shape !== "8 Inch Steel Plate") {
+        const center = document.createElementNS(ns, "circle");
+        center.setAttribute("cx", "50");
+        center.setAttribute("cy", "82");
+        center.setAttribute("r", "6.5");
+        center.setAttribute("fill", "rgba(255,255,255,0.35)");
+        center.setAttribute("stroke", "#fff");
+        center.setAttribute("stroke-width", "1");
+        svg.appendChild(center);
       }
-
-      const center = document.createElementNS(ns, "circle");
-      center.setAttribute("cx", "50");
-      center.setAttribute("cy", "82");
-      center.setAttribute("r", "6.5");
-      center.setAttribute("fill", "rgba(255,255,255,0.35)");
-      center.setAttribute("stroke", "#fff");
-      center.setAttribute("stroke-width", "1");
-      svg.appendChild(center);
 
       return svg;
     }
@@ -779,7 +840,8 @@
         id: targetIdCounter++,
         shape: defaults.shape || "IDPA",
         type: defaults.type || "Full Size",
-        distanceYd: defaults.distanceYd || 7
+        distanceValue: defaults.distanceValue ?? defaults.distanceYd ?? 7,
+        distanceUnit: defaults.distanceUnit || "yd"
       });
       syncCustomSpacingLength();
       renderUI();
@@ -843,7 +905,7 @@
         const shapeLabel = document.createElement("label");
         shapeLabel.textContent = "Target Shape";
         const shapeSelect = document.createElement("select");
-        ["USPSA", "IPSC", "IDPA", "Steel"].forEach((shape) => {
+        ["USPSA", "IPSC", "IDPA", "8 Inch Steel Plate"].forEach((shape) => {
           const opt = document.createElement("option");
           opt.value = shape;
           opt.textContent = shape;
@@ -873,19 +935,38 @@
         typeLabel.appendChild(typeSelect);
 
         const distLabel = document.createElement("label");
-        distLabel.textContent = "Distance (yards)";
+        distLabel.textContent = "Distance";
         const distInput = document.createElement("input");
         distInput.type = "number";
         distInput.min = "0.1";
         distInput.step = "0.1";
-        distInput.value = target.distanceYd;
+        distInput.value = target.distanceValue ?? 7;
         distInput.addEventListener("input", (e) => {
-          target.distanceYd = toNumber(e.target.value);
+          target.distanceValue = toNumber(e.target.value);
           recalcAndRender();
         });
         distLabel.appendChild(distInput);
 
-        card.append(head, shapeLabel, typeLabel, distLabel);
+        const unitLabel = document.createElement("label");
+        unitLabel.textContent = "Distance Unit";
+        const unitSelect = document.createElement("select");
+        [
+          { value: "yd", text: "Yards" },
+          { value: "m", text: "Meters" }
+        ].forEach((unit) => {
+          const opt = document.createElement("option");
+          opt.value = unit.value;
+          opt.textContent = unit.text;
+          if ((target.distanceUnit || "yd") === unit.value) opt.selected = true;
+          unitSelect.appendChild(opt);
+        });
+        unitSelect.addEventListener("change", (e) => {
+          target.distanceUnit = e.target.value;
+          recalcAndRender();
+        });
+        unitLabel.appendChild(unitSelect);
+
+        card.append(head, shapeLabel, typeLabel, distLabel, unitLabel);
         el.targetList.appendChild(card);
       });
     }
@@ -927,6 +1008,16 @@
       renderSpacingControls();
     }
 
+    function applyCalibrationFromInputs() {
+      state.calibration = {
+        viewDistanceIn: toNumber(el.viewDistanceIn.value),
+        monitorDiagonalIn: toNumber(el.monitorDiagonalIn.value),
+        resWidthPx: toNumber(el.resWidthPx.value),
+        resHeightPx: toNumber(el.resHeightPx.value)
+      };
+      recalcAndRender();
+    }
+
     // =====================
     // Main Compute + Render
     // =====================
@@ -934,25 +1025,20 @@
       const errors = [];
       const warnings = [];
 
-      const viewDistanceIn = toNumber(el.viewDistanceIn.value);
-      const monitorDiagonalIn = toNumber(el.monitorDiagonalIn.value);
-      const resWidthPx = toNumber(el.resWidthPx.value);
-      const resHeightPx = toNumber(el.resHeightPx.value);
-
-      state.calibration = {
-        viewDistanceIn,
-        monitorDiagonalIn,
-        resWidthPx,
-        resHeightPx
-      };
+      const viewDistanceIn = toNumber(state.calibration.viewDistanceIn);
+      const monitorDiagonalIn = toNumber(state.calibration.monitorDiagonalIn);
+      const resWidthPx = toNumber(state.calibration.resWidthPx);
+      const resHeightPx = toNumber(state.calibration.resHeightPx);
 
       if (!(viewDistanceIn > 0)) errors.push("Viewing distance must be greater than 0 inches.");
       if (!(monitorDiagonalIn > 0)) errors.push("Monitor diagonal must be greater than 0 inches.");
       if (!(resWidthPx > 0) || !(resHeightPx > 0)) errors.push("Screen resolution values must be greater than 0.");
 
       const distancesIn = state.targets.map((t, i) => {
-        const d = toNumber(t.distanceYd) * inchesPerYard;
-        if (!(d > 0)) errors.push(`T${i + 1}: distance must be greater than 0 yards.`);
+        const unit = t.distanceUnit || "yd";
+        const d = distanceToInches(t.distanceValue, unit);
+        const unitName = unit === "m" ? "meters" : "yards";
+        if (!(d > 0)) errors.push(`T${i + 1}: distance must be greater than 0 ${unitName}.`);
         return d;
       });
 
@@ -992,7 +1078,6 @@
       const stageRect = el.stage.getBoundingClientRect();
       const stageW = stageRect.width;
       const stageH = stageRect.height;
-      const floorY = stageH - 34;
 
       const rows = [];
       let overflowCount = 0;
@@ -1013,7 +1098,8 @@
           label: `T${i + 1}`,
           shape: t.shape,
           type: t.type,
-          distanceYd: t.distanceYd,
+          distanceValue: t.distanceValue,
+          distanceUnit: t.distanceUnit || "yd",
           distanceIn: distIn,
           def,
           hInOnScreen,
@@ -1060,27 +1146,30 @@
         const holder = document.createElement("div");
         holder.className = "stage-target";
         holder.style.left = `${tp.xPx}px`;
-        holder.style.bottom = `${stageH - floorY}px`;
+        holder.style.top = `${stageH / 2}px`;
 
         const visual = createTargetVisual(tp.shape, tp.type, tp.wPx, tp.hPx, tp.label);
 
         const caption = document.createElement("div");
         caption.className = "target-label";
-        caption.textContent = `${tp.label} | ${round(tp.distanceYd, 1)} yd`;
+        caption.textContent = `${tp.label} | ${round(tp.distanceValue, 1)} ${tp.distanceUnit}`;
 
         holder.append(visual, caption);
         el.stage.appendChild(holder);
 
         const halfW = tp.wPx / 2;
+        const halfH = tp.hPx / 2;
         const left = tp.xPx - halfW;
         const right = tp.xPx + halfW;
-        if (left < 0 || right > stageW || tp.hPx > floorY) overflowCount += 1;
+        const top = stageH / 2 - halfH;
+        const bottom = stageH / 2 + halfH;
+        if (left < 0 || right > stageW || top < 0 || bottom > stageH) overflowCount += 1;
 
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${tp.label}</td>
           <td>${tp.shape} / ${tp.type}</td>
-          <td>${round(tp.distanceYd, 2)} yd</td>
+          <td>${round(tp.distanceValue, 2)} ${tp.distanceUnit}</td>
           <td>${round(tp.hInOnScreen, 2)} in (${round(tp.hPx, 1)} px)</td>
           <td>${round(tp.wInOnScreen, 2)} in (${round(tp.wPx, 1)} px)</td>
           <td>${round(tp.xInOnScreen, 2)} in (${round(tp.xPx - stageW / 2, 1)} px)</td>
@@ -1125,15 +1214,7 @@
     // =====================
     // Events
     // =====================
-    [
-      el.viewDistanceIn,
-      el.monitorDiagonalIn,
-      el.resWidthPx,
-      el.resHeightPx
-    ].forEach((input) => {
-      input.addEventListener("input", recalcAndRender);
-    });
-
+    el.updateCalibrationBtn.addEventListener("click", applyCalibrationFromInputs);
     el.addTargetBtn.addEventListener("click", () => addTarget());
     el.resetBtn.addEventListener("click", resetAll);
 
@@ -1148,6 +1229,9 @@
     // =====================
     // Init
     // =====================
+    window.saveRealWorldTargetSize = saveRealWorldTargetSize;
+    window.saveSteelPlateDiameterInches = saveSteelPlateDiameterInches;
+    loadPersistedRealWorldTargetSizes();
     renderUI();
     recalcAndRender();
   </script>
