@@ -317,6 +317,12 @@
       overflow: hidden;
     }
 
+    .stage-target-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
     .axis {
       position: absolute;
       inset: 0;
@@ -493,6 +499,7 @@
       </div>
       <div class="stage-wrap">
         <div class="stage" id="stage">
+          <div id="stageTargetLayer" class="stage-target-layer"></div>
           <div class="axis" aria-hidden="true">
           </div>
           <div id="emptyNote" class="empty-note">No targets added yet. Click <strong>Add Target</strong> to begin.</div>
@@ -526,6 +533,23 @@
       IPSC: { widthIn: 18, heightIn: 30, profile: "ipsc" },
       IDPA: { widthIn: 18, heightIn: 30, profile: "idpa" },
       "8 Inch Steel Plate": { widthIn: 8, heightIn: 8, profile: "steel_plate", shapeKind: "circle" }
+    };
+    const TARGET_SHAPE_OPTIONS = ["USPSA", "IPSC", "IDPA", "8 Inch Steel Plate"];
+    const DISTANCE_UNIT_OPTIONS = [
+      { value: "yd", text: "Yards" },
+      { value: "m", text: "Meters" }
+    ];
+    const TARGET_FILL_BY_SHAPE = {
+      USPSA: "#d97706",
+      IPSC: "#0284c7",
+      IDPA: "#7c3aed",
+      "8 Inch Steel Plate": "#9ca3af"
+    };
+    const TARGET_STROKE_BY_SHAPE = {
+      USPSA: "#8f4a00",
+      IPSC: "#075985",
+      IDPA: "#4c1d95",
+      "8 Inch Steel Plate": "#52525b"
     };
     const TARGET_SIZE_STORAGE_KEY = "dryfire_target_real_world_sizes_v1";
     const TARGET_FAMILY_BY_SHAPE = {
@@ -951,6 +975,7 @@
       spacingInputs: document.getElementById("spacingInputs"),
       backgroundMode: document.getElementById("backgroundMode"),
       stage: document.getElementById("stage"),
+      stageTargetLayer: document.getElementById("stageTargetLayer"),
       alerts: document.getElementById("alerts"),
       metaReadout: document.getElementById("metaReadout"),
       calcTableBody: document.getElementById("calcTableBody"),
@@ -1011,27 +1036,13 @@
       svg.setAttribute("role", "img");
       svg.setAttribute("aria-label", `${labelText} ${shape}`);
 
-      const colorByShape = {
-        USPSA: "#d97706",
-        IPSC: "#0284c7",
-        IDPA: "#7c3aed",
-        "8 Inch Steel Plate": "#9ca3af"
-      };
-
-      const strokeByShape = {
-        USPSA: "#8f4a00",
-        IPSC: "#075985",
-        IDPA: "#4c1d95",
-        "8 Inch Steel Plate": "#52525b"
-      };
-
       if (shape === "8 Inch Steel Plate") {
         const plate = document.createElementNS(ns, "circle");
         plate.setAttribute("cx", "50");
         plate.setAttribute("cy", "80");
         plate.setAttribute("r", "40");
-        plate.setAttribute("fill", colorByShape[shape] || "#94a3b8");
-        plate.setAttribute("stroke", strokeByShape[shape] || "#334155");
+        plate.setAttribute("fill", TARGET_FILL_BY_SHAPE[shape] || "#94a3b8");
+        plate.setAttribute("stroke", TARGET_STROKE_BY_SHAPE[shape] || "#334155");
         plate.setAttribute("stroke-width", "2.5");
         svg.appendChild(plate);
       } else {
@@ -1041,8 +1052,8 @@
         bg.setAttribute("width", "84");
         bg.setAttribute("height", "152");
         bg.setAttribute("rx", "8");
-        bg.setAttribute("fill", colorByShape[shape] || "#94a3b8");
-        bg.setAttribute("stroke", strokeByShape[shape] || "#334155");
+        bg.setAttribute("fill", TARGET_FILL_BY_SHAPE[shape] || "#94a3b8");
+        bg.setAttribute("stroke", TARGET_STROKE_BY_SHAPE[shape] || "#334155");
         bg.setAttribute("stroke-width", "2.5");
         svg.appendChild(bg);
       }
@@ -1172,7 +1183,7 @@
     }
 
     function renderTargetCards() {
-      el.targetList.innerHTML = "";
+      const fragment = document.createDocumentFragment();
 
       state.targets.forEach((target, index) => {
         normalizeTargetTypeForShape(target);
@@ -1215,7 +1226,7 @@
         const shapeLabel = document.createElement("label");
         shapeLabel.textContent = "Target Shape";
         const shapeSelect = document.createElement("select");
-        ["USPSA", "IPSC", "IDPA", "8 Inch Steel Plate"].forEach((shape) => {
+        TARGET_SHAPE_OPTIONS.forEach((shape) => {
           const opt = document.createElement("option");
           opt.value = shape;
           opt.textContent = shape;
@@ -1262,10 +1273,7 @@
         const unitLabel = document.createElement("label");
         unitLabel.textContent = "Distance Unit";
         const unitSelect = document.createElement("select");
-        [
-          { value: "yd", text: "Yards" },
-          { value: "m", text: "Meters" }
-        ].forEach((unit) => {
+        DISTANCE_UNIT_OPTIONS.forEach((unit) => {
           const opt = document.createElement("option");
           opt.value = unit.value;
           opt.textContent = unit.text;
@@ -1284,19 +1292,27 @@
         body.append(shapeLabel, typeLabel, distLabel, unitLabel);
 
         card.append(head, body);
-        el.targetList.appendChild(card);
+        fragment.appendChild(card);
       });
+
+      el.targetList.replaceChildren(fragment);
     }
 
     function renderSpacingControls() {
       const show = state.targets.length >= 2;
       el.spacingSection.classList.toggle("hidden", !show);
-      if (!show) return;
+      if (!show) {
+        el.spacingInputs.replaceChildren();
+        return;
+      }
 
       el.spacingMode.value = state.spacingMode;
 
-      el.spacingInputs.innerHTML = "";
-      if (state.spacingMode !== "custom") return;
+      const fragment = document.createDocumentFragment();
+      if (state.spacingMode !== "custom") {
+        el.spacingInputs.replaceChildren();
+        return;
+      }
 
       for (let i = 0; i < state.targets.length - 1; i += 1) {
         const label = document.createElement("label");
@@ -1311,8 +1327,10 @@
           recalcAndRender();
         });
         label.appendChild(input);
-        el.spacingInputs.appendChild(label);
+        fragment.appendChild(label);
       }
+
+      el.spacingInputs.replaceChildren(fragment);
     }
 
     function parseResolutionValue(value) {
@@ -1453,8 +1471,8 @@
       }
 
       renderAlerts(errors, warnings);
-      el.stage.querySelectorAll(".stage-target").forEach((node) => node.remove());
-      el.calcTableBody.innerHTML = "";
+      el.stageTargetLayer.replaceChildren();
+      el.calcTableBody.replaceChildren();
 
       if (state.targets.length === 0) {
         el.emptyNote.classList.remove("hidden");
@@ -1472,8 +1490,9 @@
       const stageW = stageRect.width;
       const stageH = stageRect.height;
 
-      const rows = [];
       let overflowCount = 0;
+      const stageFragment = document.createDocumentFragment();
+      const tableFragment = document.createDocumentFragment();
 
       const targetProjected = state.targets.map((t, i) => {
         const def = TARGET_DEFS[t.shape] || TARGET_DEFS.IDPA;
@@ -1549,7 +1568,7 @@
         caption.textContent = `${tp.label} | ${round(tp.distanceValue, 1)} ${tp.distanceUnit}`;
 
         holder.append(visual, caption);
-        el.stage.appendChild(holder);
+        stageFragment.appendChild(holder);
 
         const halfW = tp.wPx / 2;
         const halfH = tp.hPx / 2;
@@ -1569,10 +1588,11 @@
           <td>${round(tp.xInOnScreen, 2)} in (${round(tp.xPx - stageW / 2, 1)} px)</td>
           <td>${round((tp.angleRad * 180) / Math.PI, 2)} deg</td>
         `;
-        rows.push(row);
+        tableFragment.appendChild(row);
       });
 
-      rows.forEach((r) => el.calcTableBody.appendChild(r));
+      el.stageTargetLayer.replaceChildren(stageFragment);
+      el.calcTableBody.replaceChildren(tableFragment);
 
       if (overflowCount > 0) {
         warnings.push(`${overflowCount} target(s) overflow the current display area. Adjust distances, spacing, or monitor inputs.`);
