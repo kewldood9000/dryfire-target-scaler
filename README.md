@@ -89,4 +89,23 @@ To use:
 
 ---
 
-## 📁 Project Structure
+## 🧠 Future Improvements
+
+- Vertical positioning (height offsets)
+- Drag-and-drop target placement
+- Save/load stage configurations
+- More accurate target shapes
+- Mobile/tablet support
+- Adjustable field of view / head movement simulation
+
+---
+
+## ⚠️ Disclaimer
+
+This tool is for training and visualization purposes only.  
+
+---
+
+## 🔗 Hosting
+
+This project is designed to be hosted via GitHub Pages:
