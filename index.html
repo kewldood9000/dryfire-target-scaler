@@ -6,16 +6,16 @@
   <title>Dry-Fire Target Visualizer</title>
   <style>
     :root {
-      --bg: #0d131f;
-      --panel: #121b2d;
-      --panel-2: #17243a;
-      --text: #e7eefc;
-      --muted: #9eb3d3;
-      --accent: #22c55e;
+      --bg: #1e1f22;
+      --panel: #2b2d31;
+      --panel-2: #232428;
+      --text: #f2f3f5;
+      --muted: #b5bac1;
+      --accent: #23a559;
       --warn: #f59e0b;
       --danger: #ef4444;
-      --line: #2a3a56;
-      --display-bg: #0a0f1a;
+      --line: #3a3d45;
+      --display-bg: #1e1f22;
       --shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
     }
 
@@ -28,13 +28,12 @@
       min-height: 100vh;
       font-family: "Segoe UI", "Trebuchet MS", sans-serif;
       color: var(--text);
-      background: radial-gradient(circle at 12% 12%, #1b2b48 0%, #0d131f 40%),
-        linear-gradient(145deg, #0d131f, #0c1018);
+      background: linear-gradient(145deg, #1e1f22, #1a1b1e);
     }
 
     .app {
       display: grid;
-      grid-template-columns: 440px 1fr;
+      grid-template-columns: 220px 1fr;
       gap: 16px;
       padding: 16px;
       min-height: 100vh;
@@ -54,6 +53,7 @@
       margin: 0 0 4px;
       font-size: 1.2rem;
       letter-spacing: 0.02em;
+      text-align: center;
     }
 
     .subtitle {
@@ -81,6 +81,12 @@
       gap: 10px;
     }
 
+    .grid-4 {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
     label {
       display: grid;
       gap: 5px;
@@ -97,9 +103,9 @@
     input,
     select {
       width: 100%;
-      border: 1px solid #435578;
+      border: 1px solid #4e5259;
       border-radius: 8px;
-      background: #0c1422;
+      background: #1e1f22;
       color: var(--text);
       padding: 8px 10px;
     }
@@ -107,7 +113,7 @@
     input:focus,
     select:focus,
     button:focus-visible {
-      outline: 2px solid #3b82f6;
+      outline: 2px solid #5865f2;
       outline-offset: 1px;
     }
 
@@ -118,11 +124,12 @@
     }
 
     .btn {
-      border: 1px solid #426387;
+      border: 1px solid #4e5259;
       border-radius: 8px;
-      background: #1a2a43;
+      background: #3a3d45;
       color: var(--text);
-      padding: 8px 12px;
+      padding: 6px 10px;
+      font-size: 0.9rem;
       cursor: pointer;
       transition: 0.15s ease;
     }
@@ -132,22 +139,22 @@
     }
 
     .btn.primary {
-      background: linear-gradient(180deg, #1ea451, #157c3d);
-      border-color: #0f6f34;
-      color: #f1fff7;
+      background: linear-gradient(180deg, #4ea8ff, #2d7dff);
+      border-color: #1f63db;
+      color: #f7fbff;
     }
 
     .btn.warn {
-      background: linear-gradient(180deg, #b84949, #8c2e2e);
-      border-color: #7b2929;
-      color: #fff7f7;
+      background: linear-gradient(180deg, #ff5a5a, #e23636);
+      border-color: #c92727;
+      color: #fff8f8;
     }
 
     .target-card {
       margin-top: 10px;
-      border: 1px solid #3f4f6f;
+      border: 1px solid #4e5259;
       border-radius: 10px;
-      background: rgba(18, 30, 49, 0.85);
+      background: rgba(30, 31, 34, 0.88);
       padding: 10px;
       display: grid;
       gap: 8px;
@@ -158,6 +165,38 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
+    }
+
+    .target-head-actions {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .btn.win {
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
+      border: 1px solid #5f646d;
+      background: #3a3d45;
+      color: #f2f3f5;
+      font-size: 0.82rem;
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    .btn.win.remove {
+      background: #3a1f2b;
+      border-color: #7f4b62;
+    }
+
+    .target-body {
+      display: grid;
+      gap: 8px;
     }
 
     .target-title {
@@ -203,7 +242,7 @@
       border: 1px solid var(--line);
       border-radius: 14px;
       box-shadow: var(--shadow);
-      background: linear-gradient(180deg, #0b1220 0%, #070d17 100%);
+      background: linear-gradient(180deg, #2b2d31 0%, #1e1f22 100%);
       display: grid;
       grid-template-rows: auto 1fr auto;
       min-height: calc(100vh - 32px);
@@ -217,7 +256,7 @@
       justify-content: space-between;
       align-items: center;
       gap: 10px;
-      background: rgba(13, 21, 37, 0.9);
+      background: rgba(35, 36, 40, 0.96);
     }
 
     .display-head strong {
@@ -243,17 +282,17 @@
       width: 100%;
       height: 100%;
       min-height: 560px;
-      border: 1px solid #203047;
+      border: 1px solid #3a3d45;
       border-radius: 10px;
       background:
         repeating-linear-gradient(
           90deg,
-          rgba(29, 48, 74, 0.35) 0,
-          rgba(29, 48, 74, 0.35) 1px,
+          rgba(79, 84, 92, 0.22) 0,
+          rgba(79, 84, 92, 0.22) 1px,
           transparent 1px,
           transparent 80px
         ),
-        linear-gradient(180deg, #111b2e 0%, #0b101b 100%);
+        linear-gradient(180deg, #2b2d31 0%, #1e1f22 100%);
       position: relative;
       overflow: hidden;
     }
@@ -339,14 +378,14 @@
 
     th,
     td {
-      border-bottom: 1px solid #263754;
+      border-bottom: 1px solid #3a3d45;
       text-align: left;
       padding: 6px 8px;
       white-space: nowrap;
     }
 
     th {
-      color: #b8cae6;
+      color: #c9ccd1;
       font-weight: 600;
       letter-spacing: 0.01em;
     }
@@ -365,30 +404,33 @@
 <body>
   <main class="app">
     <aside class="panel" aria-label="Controls">
-      <h1>Dry-Fire Target Visualizer</h1>
-      <p class="subtitle">Desktop-first monitor projection tool for angularly correct dry-fire target display.</p>
+      <h1>Dry-Fire<br />Target Visualizer</h1>
+      <p class="subtitle">Desktop monitor projection tool for angularly correct dry-fire target display.</p>
 
       <section class="section" aria-labelledby="calibration-title">
         <h2 id="calibration-title">Calibration</h2>
-        <div class="grid-2">
+        <div class="grid-4">
           <label>
             Viewing Distance (in)
-            <input id="viewDistanceIn" type="number" min="1" step="0.1" value="30" />
+            <input id="viewDistanceIn" type="number" min="1" step="0.1" value="38" />
           </label>
           <label>
             Monitor Diagonal (in)
             <input id="monitorDiagonalIn" type="number" min="1" step="0.1" value="27" />
           </label>
           <label>
-            Resolution Width (px)
-            <input id="resWidthPx" type="number" min="1" step="1" value="2560" />
+            Monitor Aspect Ratio
+            <select id="monitorAspectRatio">
+              <option value="16:9">16:9</option>
+              <option value="16:10">16:10</option>
+            </select>
           </label>
           <label>
-            Resolution Height (px)
-            <input id="resHeightPx" type="number" min="1" step="1" value="1440" />
+            Resolution Preset
+            <select id="resolutionPreset"></select>
           </label>
         </div>
-        <div class="row" style="margin-top:10px">
+        <div class="row" style="margin-top:10px; justify-content:center;">
           <button id="updateCalibrationBtn" class="btn primary" type="button">Update Calibration</button>
         </div>
         <p class="hint">
@@ -481,18 +523,34 @@
 
     const TARGET_TYPES = [
       "Full Size",
-      "Half Covered by No-Shoot",
+      "Left Half Covered by No-Shoot",
+      "Right Half Covered by No-Shoot",
       "Head Only",
       "Partial"
     ];
+
+    const RESOLUTION_PRESETS = {
+      "16:9": [
+        { value: "1920x1080", label: "1920x1080 (HD)" },
+        { value: "2560x1440", label: "2560x1440 (1440p)" },
+        { value: "3840x2160", label: "3840x2160 (4K)" }
+      ],
+      "16:10": [
+        { value: "1920x1200", label: "1920x1200 (HD)" },
+        { value: "2560x1600", label: "2560x1600 (2k)" },
+        { value: "2880x1800", label: "2880x1800 (MacBook Retina)" }
+      ]
+    };
 
     // =====================
     // UI State
     // =====================
     const state = {
       calibration: {
-        viewDistanceIn: 30,
+        viewDistanceIn: 38,
         monitorDiagonalIn: 27,
+        aspectRatio: "16:9",
+        resolutionPreset: "2560x1440",
         resWidthPx: 2560,
         resHeightPx: 1440
       },
@@ -629,8 +687,8 @@
     const el = {
       viewDistanceIn: document.getElementById("viewDistanceIn"),
       monitorDiagonalIn: document.getElementById("monitorDiagonalIn"),
-      resWidthPx: document.getElementById("resWidthPx"),
-      resHeightPx: document.getElementById("resHeightPx"),
+      monitorAspectRatio: document.getElementById("monitorAspectRatio"),
+      resolutionPreset: document.getElementById("resolutionPreset"),
       addTargetBtn: document.getElementById("addTargetBtn"),
       resetBtn: document.getElementById("resetBtn"),
       updateCalibrationBtn: document.getElementById("updateCalibrationBtn"),
@@ -784,12 +842,23 @@
     function appendTypeOverlays(container, type) {
       if (type === "Full Size") return;
 
-      if (type === "Half Covered by No-Shoot") {
+      if (type === "Left Half Covered by No-Shoot") {
         const cover = document.createElement("div");
         cover.className = "variant-overlay strong";
         cover.style.left = "0";
         cover.style.top = "0";
-        cover.style.width = "52%";
+        cover.style.width = "50%";
+        cover.style.height = "100%";
+        container.appendChild(cover);
+        return;
+      }
+
+      if (type === "Right Half Covered by No-Shoot") {
+        const cover = document.createElement("div");
+        cover.className = "variant-overlay strong";
+        cover.style.right = "0";
+        cover.style.top = "0";
+        cover.style.width = "50%";
         cover.style.height = "100%";
         container.appendChild(cover);
         return;
@@ -838,10 +907,11 @@
     function addTarget(defaults = {}) {
       state.targets.push({
         id: targetIdCounter++,
-        shape: defaults.shape || "IDPA",
+        shape: defaults.shape || "USPSA",
         type: defaults.type || "Full Size",
         distanceValue: defaults.distanceValue ?? defaults.distanceYd ?? 7,
-        distanceUnit: defaults.distanceUnit || "yd"
+        distanceUnit: defaults.distanceUnit || "yd",
+        collapsed: Boolean(defaults.collapsed)
       });
       syncCustomSpacingLength();
       renderUI();
@@ -857,8 +927,10 @@
 
     function resetAll() {
       state.calibration = {
-        viewDistanceIn: 30,
+        viewDistanceIn: 38,
         monitorDiagonalIn: 27,
+        aspectRatio: "16:9",
+        resolutionPreset: "2560x1440",
         resWidthPx: 2560,
         resHeightPx: 1440
       };
@@ -894,13 +966,30 @@
         title.className = "target-title";
         title.textContent = `T${index + 1}`;
 
+        const actions = document.createElement("div");
+        actions.className = "target-head-actions";
+
+        const collapseBtn = document.createElement("button");
+        collapseBtn.type = "button";
+        collapseBtn.className = "btn win";
+        collapseBtn.textContent = target.collapsed ? "□" : "−";
+        collapseBtn.title = target.collapsed ? "Expand target card" : "Minimize target card";
+        collapseBtn.setAttribute("aria-label", collapseBtn.title);
+        collapseBtn.addEventListener("click", () => {
+          target.collapsed = !target.collapsed;
+          renderUI();
+        });
+
         const removeBtn = document.createElement("button");
         removeBtn.type = "button";
-        removeBtn.className = "btn";
-        removeBtn.textContent = "Remove";
+        removeBtn.className = "btn win remove";
+        removeBtn.textContent = "×";
+        removeBtn.title = "Remove target";
+        removeBtn.setAttribute("aria-label", "Remove target");
         removeBtn.addEventListener("click", () => removeTarget(index));
 
-        head.append(title, removeBtn);
+        actions.append(collapseBtn, removeBtn);
+        head.append(title, actions);
 
         const shapeLabel = document.createElement("label");
         shapeLabel.textContent = "Target Shape";
@@ -966,7 +1055,12 @@
         });
         unitLabel.appendChild(unitSelect);
 
-        card.append(head, shapeLabel, typeLabel, distLabel, unitLabel);
+        const body = document.createElement("div");
+        body.className = "target-body";
+        body.classList.toggle("hidden", Boolean(target.collapsed));
+        body.append(shapeLabel, typeLabel, distLabel, unitLabel);
+
+        card.append(head, body);
         el.targetList.appendChild(card);
       });
     }
@@ -998,22 +1092,52 @@
       }
     }
 
+    function parseResolutionValue(value) {
+      const parts = String(value).toLowerCase().split("x");
+      if (parts.length !== 2) return { width: NaN, height: NaN };
+      return {
+        width: toNumber(parts[0]),
+        height: toNumber(parts[1])
+      };
+    }
+
+    function renderResolutionPresetOptions(aspectRatio, preferredValue) {
+      const options = RESOLUTION_PRESETS[aspectRatio] || [];
+      el.resolutionPreset.innerHTML = "";
+      options.forEach((preset) => {
+        const opt = document.createElement("option");
+        opt.value = preset.value;
+        opt.textContent = preset.label;
+        if (preset.value === preferredValue) opt.selected = true;
+        el.resolutionPreset.appendChild(opt);
+      });
+
+      if (!options.some((p) => p.value === preferredValue) && options.length > 0) {
+        el.resolutionPreset.value = options[0].value;
+      }
+    }
+
     function renderUI() {
       el.viewDistanceIn.value = state.calibration.viewDistanceIn;
       el.monitorDiagonalIn.value = state.calibration.monitorDiagonalIn;
-      el.resWidthPx.value = state.calibration.resWidthPx;
-      el.resHeightPx.value = state.calibration.resHeightPx;
+      el.monitorAspectRatio.value = state.calibration.aspectRatio;
+      renderResolutionPresetOptions(state.calibration.aspectRatio, state.calibration.resolutionPreset);
 
       renderTargetCards();
       renderSpacingControls();
     }
 
     function applyCalibrationFromInputs() {
+      const aspectRatio = el.monitorAspectRatio.value;
+      const preset = el.resolutionPreset.value;
+      const parsed = parseResolutionValue(preset);
       state.calibration = {
         viewDistanceIn: toNumber(el.viewDistanceIn.value),
         monitorDiagonalIn: toNumber(el.monitorDiagonalIn.value),
-        resWidthPx: toNumber(el.resWidthPx.value),
-        resHeightPx: toNumber(el.resHeightPx.value)
+        aspectRatio,
+        resolutionPreset: preset,
+        resWidthPx: parsed.width,
+        resHeightPx: parsed.height
       };
       recalcAndRender();
     }
@@ -1187,7 +1311,7 @@
       renderAlerts(errors, warnings);
 
       el.metaReadout.innerHTML = `
-        <span>PPI: <strong>${round(ppi, 2)}</strong></span>
+        <span>Pixels per inch: <strong>${round(ppi, 2)}</strong></span>
         <span>Mode: <strong>${state.spacingMode === "equal" ? "Equal Screen Spacing" : "Custom Real-World Spacing"}</strong></span>
         <span>Targets: <strong>${state.targets.length}</strong></span>
       `;
@@ -1214,6 +1338,12 @@
     // =====================
     // Events
     // =====================
+    el.monitorAspectRatio.addEventListener("change", () => {
+      const nextAspect = el.monitorAspectRatio.value;
+      const currentPreset = el.resolutionPreset.value;
+      renderResolutionPresetOptions(nextAspect, currentPreset);
+    });
+
     el.updateCalibrationBtn.addEventListener("click", applyCalibrationFromInputs);
     el.addTargetBtn.addEventListener("click", () => addTarget());
     el.resetBtn.addEventListener("click", resetAll);
