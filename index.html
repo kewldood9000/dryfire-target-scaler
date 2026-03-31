@@ -1032,15 +1032,15 @@
       svg.setAttribute("class", "target-svg");
       svg.setAttribute("width", Math.max(1, widthPx).toFixed(1));
       svg.setAttribute("height", Math.max(1, heightPx).toFixed(1));
-      svg.setAttribute("viewBox", "0 0 100 160");
+      svg.setAttribute("viewBox", shape === "8 Inch Steel Plate" ? "0 0 100 100" : "0 0 100 160");
       svg.setAttribute("role", "img");
       svg.setAttribute("aria-label", `${labelText} ${shape}`);
 
       if (shape === "8 Inch Steel Plate") {
         const plate = document.createElementNS(ns, "circle");
         plate.setAttribute("cx", "50");
-        plate.setAttribute("cy", "80");
-        plate.setAttribute("r", "40");
+        plate.setAttribute("cy", "50");
+        plate.setAttribute("r", "47");
         plate.setAttribute("fill", TARGET_FILL_BY_SHAPE[shape] || "#94a3b8");
         plate.setAttribute("stroke", TARGET_STROKE_BY_SHAPE[shape] || "#334155");
         plate.setAttribute("stroke-width", "2.5");
@@ -1264,9 +1264,39 @@
         distInput.min = "0.1";
         distInput.step = "0.1";
         distInput.value = target.distanceValue ?? 7;
+        let isManualDistanceEdit = false;
+        const resetDistanceInputToCommittedValue = () => {
+          distInput.value = target.distanceValue ?? 7;
+          isManualDistanceEdit = false;
+        };
+        distInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            target.distanceValue = toNumber(distInput.value);
+            isManualDistanceEdit = false;
+            recalcAndRender();
+            return;
+          }
+          if (e.key === "Escape") {
+            resetDistanceInputToCommittedValue();
+            return;
+          }
+          if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "Tab") {
+            isManualDistanceEdit = false;
+            return;
+          }
+          if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+            isManualDistanceEdit = true;
+          }
+        });
         distInput.addEventListener("input", (e) => {
+          if (isManualDistanceEdit) return;
           target.distanceValue = toNumber(e.target.value);
           recalcAndRender();
+        });
+        distInput.addEventListener("blur", () => {
+          if (isManualDistanceEdit) {
+            resetDistanceInputToCommittedValue();
+          }
         });
         distLabel.appendChild(distInput);
 
