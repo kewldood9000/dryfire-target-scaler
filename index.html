@@ -364,15 +364,16 @@
       object-position: center;
     }
 
-    .variant-overlay {
+    .target-overlay-layer {
       position: absolute;
-      background: rgba(235, 235, 235, 0.84);
+      inset: 0;
       pointer-events: none;
     }
 
-    .variant-overlay.strong {
-      background: rgba(230, 230, 230, 0.9);
-      border-right: 1px solid rgba(55, 65, 81, 0.92);
+    .target-overlay-piece {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
     }
 
     .display-foot {
@@ -527,6 +528,12 @@
       "8 Inch Steel Plate": { widthIn: 8, heightIn: 8, profile: "steel_plate", shapeKind: "circle" }
     };
     const TARGET_SIZE_STORAGE_KEY = "dryfire_target_real_world_sizes_v1";
+    const TARGET_FAMILY_BY_SHAPE = {
+      USPSA: "uspsa",
+      IDPA: "idpa",
+      IPSC: "ipsc",
+      "8 Inch Steel Plate": "steel"
+    };
 
     // Add/adjust file names here as you place images in ./images.
     // You can provide either a single string path or an array of candidate paths.
@@ -543,13 +550,197 @@
       ]
     };
 
-    const TARGET_TYPES = [
-      "Full Size",
-      "Left Half Covered by No-Shoot",
-      "Right Half Covered by No-Shoot",
-      "Head Only",
-      "Partial"
-    ];
+    const TARGET_TYPE_OPTIONS_BY_FAMILY = {
+      uspsa: [
+        { value: "open", label: "Open" },
+        { value: "zebra", label: "Zebra" },
+        { value: "halfZebraLeft", label: "Half-Zebra (Left)" },
+        { value: "halfZebraRight", label: "Half-Zebra (Right)" },
+        { value: "peekerLeft", label: "Peeker (Left)" },
+        { value: "peekerRight", label: "Peeker (Right)" },
+        { value: "peekerBottom", label: "Peeker (Bottom)" },
+        { value: "noShoot", label: "No-Shoot" }
+      ],
+      idpa: [
+        { value: "open", label: "Open" },
+        { value: "zebra", label: "Zebra" },
+        { value: "halfZebraLeft", label: "Half-Zebra (Left)" },
+        { value: "halfZebraRight", label: "Half-Zebra (Right)" },
+        { value: "peekerLeft", label: "Peeker (Left)" },
+        { value: "peekerRight", label: "Peeker (Right)" },
+        { value: "peekerBottom", label: "Peeker (Bottom)" },
+        { value: "noShoot", label: "No-Shoot" }
+      ],
+      ipsc: [
+        { value: "open", label: "Open" },
+        { value: "zebra", label: "Zebra" },
+        { value: "peekerLeft", label: "Peeker Left" },
+        { value: "peekerRight", label: "Peeker Right" },
+        { value: "peekerBottom", label: "Peeker Bottom" },
+        { value: "zebraLeft", label: "Zebra Left" },
+        { value: "zebraRight", label: "Zebra Right" },
+        { value: "noShoot", label: "No-Shoot" }
+      ],
+      steel: [
+        { value: "open", label: "Open" }
+      ]
+    };
+
+    const TARGET_OVERLAY_DEFINITIONS = {
+      uspsa: {
+        silhouette: "polygon(35% 0%, 65% 0%, 65% 17%, 84% 17%, 100% 29%, 100% 78%, 83% 100%, 17% 100%, 0% 78%, 0% 29%, 35% 17%)",
+        overlays: {
+          open: null,
+          zebra: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(0% 18%, 26% 18%, 37% 31%, 37% 83%, 27% 100%, 0% 100%)",
+              "polygon(74% 18%, 100% 18%, 100% 100%, 73% 100%, 63% 83%, 63% 31%)"
+            ]
+          },
+          halfZebraLeft: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(0% 18%, 26% 18%, 37% 31%, 37% 83%, 27% 100%, 0% 100%)"
+            ]
+          },
+          halfZebraRight: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(74% 18%, 100% 18%, 100% 100%, 73% 100%, 63% 83%, 63% 31%)"
+            ]
+          },
+          peekerLeft: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(0% 28%, 17% 18%, 95% 83%, 78% 100%, 15% 100%, 0% 82%)"
+            ]
+          },
+          peekerRight: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(83% 18%, 100% 28%, 100% 82%, 85% 100%, 22% 100%, 5% 83%)"
+            ]
+          },
+          peekerBottom: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(0% 58%, 100% 58%, 100% 100%, 0% 100%)"
+            ]
+          },
+          noShoot: {
+            fill: "rgba(255, 255, 255, 0.98)",
+            polygons: [
+              "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)"
+            ]
+          }
+        }
+      },
+      idpa: {
+        silhouette: "polygon(35% 0%, 65% 0%, 65% 17%, 84% 17%, 100% 29%, 100% 78%, 83% 100%, 17% 100%, 0% 78%, 0% 29%, 35% 17%)",
+        overlays: {
+          open: null,
+          zebra: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(0% 18%, 26% 18%, 37% 31%, 37% 83%, 27% 100%, 0% 100%)",
+              "polygon(74% 18%, 100% 18%, 100% 100%, 73% 100%, 63% 83%, 63% 31%)"
+            ]
+          },
+          halfZebraLeft: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(0% 18%, 26% 18%, 37% 31%, 37% 83%, 27% 100%, 0% 100%)"
+            ]
+          },
+          halfZebraRight: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(74% 18%, 100% 18%, 100% 100%, 73% 100%, 63% 83%, 63% 31%)"
+            ]
+          },
+          peekerLeft: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(0% 28%, 17% 18%, 95% 83%, 78% 100%, 15% 100%, 0% 82%)"
+            ]
+          },
+          peekerRight: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(83% 18%, 100% 28%, 100% 82%, 85% 100%, 22% 100%, 5% 83%)"
+            ]
+          },
+          peekerBottom: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(0% 58%, 100% 58%, 100% 100%, 0% 100%)"
+            ]
+          },
+          noShoot: {
+            fill: "rgba(255, 255, 255, 0.98)",
+            polygons: [
+              "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)"
+            ]
+          }
+        }
+      },
+      ipsc: {
+        silhouette: "polygon(35% 0%, 65% 0%, 65% 17%, 84% 17%, 100% 30%, 100% 81%, 81% 100%, 19% 100%, 0% 81%, 0% 30%, 35% 17%)",
+        overlays: {
+          open: null,
+          zebra: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(0% 18%, 28% 18%, 40% 32%, 40% 83%, 28% 100%, 0% 100%)",
+              "polygon(72% 18%, 100% 18%, 100% 100%, 72% 100%, 60% 83%, 60% 32%)"
+            ]
+          },
+          zebraLeft: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(0% 18%, 28% 18%, 40% 32%, 40% 83%, 28% 100%, 0% 100%)"
+            ]
+          },
+          zebraRight: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(72% 18%, 100% 18%, 100% 100%, 72% 100%, 60% 83%, 60% 32%)"
+            ]
+          },
+          peekerLeft: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(0% 27%, 18% 18%, 96% 84%, 79% 100%, 16% 100%, 0% 83%)"
+            ]
+          },
+          peekerRight: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(82% 18%, 100% 27%, 100% 83%, 84% 100%, 21% 100%, 4% 84%)"
+            ]
+          },
+          peekerBottom: {
+            fill: "rgba(0, 0, 0, 0.96)",
+            polygons: [
+              "polygon(0% 60%, 100% 60%, 100% 100%, 0% 100%)"
+            ]
+          },
+          noShoot: {
+            fill: "rgba(255, 255, 255, 0.98)",
+            polygons: [
+              "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)"
+            ]
+          }
+        }
+      },
+      steel: {
+        silhouette: "circle(50% at 50% 50%)",
+        overlays: {
+          open: null
+        }
+      }
+    };
 
     const RESOLUTION_PRESETS = {
       "16:9": [
@@ -626,6 +817,29 @@
     function round(value, digits = 2) {
       const p = Math.pow(10, digits);
       return Math.round(value * p) / p;
+    }
+
+    function getTargetFamily(shape) {
+      return TARGET_FAMILY_BY_SHAPE[shape] || "uspsa";
+    }
+
+    function getTargetTypeOptionsForShape(shape) {
+      return TARGET_TYPE_OPTIONS_BY_FAMILY[getTargetFamily(shape)] || TARGET_TYPE_OPTIONS_BY_FAMILY.uspsa;
+    }
+
+    function isTargetTypeValidForShape(shape, type) {
+      return getTargetTypeOptionsForShape(shape).some((option) => option.value === type);
+    }
+
+    function normalizeTargetTypeForShape(target) {
+      if (!isTargetTypeValidForShape(target.shape, target.type)) {
+        target.type = "open";
+      }
+    }
+
+    function getTargetTypeLabel(shape, type) {
+      const match = getTargetTypeOptionsForShape(shape).find((option) => option.value === type);
+      return match ? match.label : "Open";
     }
 
     function setRealWorldTargetSize(shape, widthIn, heightIn, options = {}) {
@@ -758,12 +972,13 @@
       wrapper.className = "target-visual";
       wrapper.style.width = `${Math.max(1, widthPx).toFixed(1)}px`;
       wrapper.style.height = `${Math.max(1, heightPx).toFixed(1)}px`;
+      const typeLabel = getTargetTypeLabel(shape, type);
 
       const assetConfig = TARGET_IMAGE_ASSETS[shape];
       const imageCandidates = Array.isArray(assetConfig) ? assetConfig : (assetConfig ? [assetConfig] : []);
       if (imageCandidates.length > 0 && !state.imageAssetFailures[shape]) {
         const img = document.createElement("img");
-        img.alt = `${labelText} ${shape} ${type}`;
+        img.alt = `${labelText} ${shape} ${typeLabel}`;
         let idx = 0;
         img.src = imageCandidates[idx];
 
@@ -780,16 +995,16 @@
           state.imageAssetFailures[shape] = imageCandidates.slice();
           wrapper.innerHTML = "";
           wrapper.appendChild(createTargetSVG(shape, widthPx, heightPx, labelText));
-          appendTypeOverlays(wrapper, type);
+          appendTypeOverlays(wrapper, shape, type);
         });
 
         wrapper.appendChild(img);
-        appendTypeOverlays(wrapper, type);
+        appendTypeOverlays(wrapper, shape, type);
         return wrapper;
       }
 
       wrapper.appendChild(createTargetSVG(shape, widthPx, heightPx, labelText));
-      appendTypeOverlays(wrapper, type);
+      appendTypeOverlays(wrapper, shape, type);
       return wrapper;
     }
 
@@ -886,66 +1101,27 @@
       return svg;
     }
 
-    function appendTypeOverlays(container, type) {
-      if (type === "Full Size") return;
+    function appendTypeOverlays(container, shape, type) {
+      const family = getTargetFamily(shape);
+      const familyDefs = TARGET_OVERLAY_DEFINITIONS[family];
+      if (!familyDefs) return;
 
-      if (type === "Left Half Covered by No-Shoot") {
-        const cover = document.createElement("div");
-        cover.className = "variant-overlay strong";
-        cover.style.left = "0";
-        cover.style.top = "0";
-        cover.style.width = "50%";
-        cover.style.height = "100%";
-        container.appendChild(cover);
-        return;
-      }
+      const overlayDef = familyDefs.overlays[type];
+      if (!overlayDef) return;
 
-      if (type === "Right Half Covered by No-Shoot") {
-        const cover = document.createElement("div");
-        cover.className = "variant-overlay strong";
-        cover.style.right = "0";
-        cover.style.top = "0";
-        cover.style.width = "50%";
-        cover.style.height = "100%";
-        container.appendChild(cover);
-        return;
-      }
+      const overlayLayer = document.createElement("div");
+      overlayLayer.className = "target-overlay-layer";
+      overlayLayer.style.clipPath = familyDefs.silhouette;
 
-      if (type === "Head Only") {
-        const mask = document.createElement("div");
-        mask.className = "variant-overlay";
-        mask.style.left = "0";
-        mask.style.right = "0";
-        mask.style.top = "31.25%";
-        mask.style.bottom = "0";
-        container.appendChild(mask);
-        return;
-      }
+      overlayDef.polygons.forEach((polygon) => {
+        const piece = document.createElement("div");
+        piece.className = "target-overlay-piece";
+        piece.style.background = overlayDef.fill;
+        piece.style.clipPath = polygon;
+        overlayLayer.appendChild(piece);
+      });
 
-      if (type === "Partial") {
-        const left = document.createElement("div");
-        left.className = "variant-overlay";
-        left.style.left = "0";
-        left.style.top = "0";
-        left.style.width = "22%";
-        left.style.height = "100%";
-
-        const right = document.createElement("div");
-        right.className = "variant-overlay";
-        right.style.right = "0";
-        right.style.top = "0";
-        right.style.width = "22%";
-        right.style.height = "100%";
-
-        const low = document.createElement("div");
-        low.className = "variant-overlay";
-        low.style.left = "0";
-        low.style.right = "0";
-        low.style.top = "70%";
-        low.style.bottom = "0";
-
-        container.append(left, right, low);
-      }
+      container.appendChild(overlayLayer);
     }
 
     // =====================
@@ -955,11 +1131,12 @@
       state.targets.push({
         id: targetIdCounter++,
         shape: defaults.shape || "USPSA",
-        type: defaults.type || "Full Size",
+        type: defaults.type || "open",
         distanceValue: defaults.distanceValue ?? defaults.distanceYd ?? 7,
         distanceUnit: defaults.distanceUnit || "yd",
         collapsed: Boolean(defaults.collapsed)
       });
+      normalizeTargetTypeForShape(state.targets[state.targets.length - 1]);
       syncCustomSpacingLength();
       renderUI();
       recalcAndRender();
@@ -1005,6 +1182,8 @@
       el.targetList.innerHTML = "";
 
       state.targets.forEach((target, index) => {
+        normalizeTargetTypeForShape(target);
+
         const card = document.createElement("article");
         card.className = "target-card";
 
@@ -1052,6 +1231,8 @@
         });
         shapeSelect.addEventListener("change", (e) => {
           target.shape = e.target.value;
+          normalizeTargetTypeForShape(target);
+          renderUI();
           recalcAndRender();
         });
         shapeLabel.appendChild(shapeSelect);
@@ -1059,11 +1240,11 @@
         const typeLabel = document.createElement("label");
         typeLabel.textContent = "Target Type";
         const typeSelect = document.createElement("select");
-        TARGET_TYPES.forEach((tt) => {
+        getTargetTypeOptionsForShape(target.shape).forEach((tt) => {
           const opt = document.createElement("option");
-          opt.value = tt;
-          opt.textContent = tt;
-          if (tt === target.type) opt.selected = true;
+          opt.value = tt.value;
+          opt.textContent = tt.label;
+          if (tt.value === target.type) opt.selected = true;
           typeSelect.appendChild(opt);
         });
         typeSelect.addEventListener("change", (e) => {
@@ -1317,6 +1498,7 @@
           label: `T${i + 1}`,
           shape: t.shape,
           type: t.type,
+          typeLabel: getTargetTypeLabel(t.shape, t.type),
           distanceValue: t.distanceValue,
           distanceUnit: t.distanceUnit || "yd",
           distanceIn: distIn,
@@ -1387,7 +1569,7 @@
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${tp.label}</td>
-          <td>${tp.shape} / ${tp.type}</td>
+          <td>${tp.shape} / ${tp.typeLabel}</td>
           <td>${round(tp.distanceValue, 2)} ${tp.distanceUnit}</td>
           <td>${round(tp.hInOnScreen, 2)} in (${round(tp.hPx, 1)} px)</td>
           <td>${round(tp.wInOnScreen, 2)} in (${round(tp.wPx, 1)} px)</td>
