@@ -317,6 +317,11 @@
       display: block;
     }
 
+    .target-visual > img {
+      object-fit: contain;
+      object-position: center;
+    }
+
     .variant-overlay {
       position: absolute;
       background: rgba(235, 235, 235, 0.84);
@@ -458,7 +463,7 @@
     // Target Definitions
     // =====================
     const TARGET_DEFS = {
-      USPSA: { widthIn: 18, heightIn: 30, profile: "uspsa" },
+      USPSA: { widthIn: 18.12, heightIn: 29.93, profile: "uspsa" },
       IPSC: { widthIn: 18, heightIn: 30, profile: "ipsc" },
       IDPA: { widthIn: 18, heightIn: 30, profile: "idpa" },
       Steel: { widthIn: 12, heightIn: 20, profile: "steel" }
@@ -838,7 +843,7 @@
         const shapeLabel = document.createElement("label");
         shapeLabel.textContent = "Target Shape";
         const shapeSelect = document.createElement("select");
-        ["IDPA", "IPSC", "USPSA", "Steel"].forEach((shape) => {
+        ["USPSA", "IPSC", "IDPA", "Steel"].forEach((shape) => {
           const opt = document.createElement("option");
           opt.value = shape;
           opt.textContent = shape;
@@ -995,9 +1000,10 @@
       const targetProjected = state.targets.map((t, i) => {
         const def = TARGET_DEFS[t.shape] || TARGET_DEFS.IDPA;
         const distIn = distancesIn[i];
+        const aspectRatio = def.widthIn / def.heightIn;
 
         const hInOnScreen = projectedSizeInches(def.heightIn, distIn, viewDistanceIn);
-        const wInOnScreen = projectedSizeInches(def.widthIn, distIn, viewDistanceIn);
+        const wInOnScreen = hInOnScreen * aspectRatio;
 
         const hPx = hInOnScreen * ppi;
         const wPx = wInOnScreen * ppi;
