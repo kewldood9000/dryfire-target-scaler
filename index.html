@@ -377,6 +377,15 @@
       object-position: center;
     }
 
+    .target-visual.texture-circle {
+      border-radius: 50%;
+      overflow: hidden;
+    }
+
+    .target-visual.texture-circle > img {
+      object-fit: cover;
+    }
+
     .target-overlay-svg {
       position: absolute;
       inset: 0;
@@ -426,7 +435,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.0.1</p>
+      <p class="version">Ver. 1.0.2</p>
 
       <section class="section" aria-labelledby="calibration-title">
         <h2 id="calibration-title">Calibration</h2>
@@ -572,6 +581,12 @@
         "./images/ipsc.png",
         "images/IPSC.png",
         "./images/IPSC.png"
+      ],
+      "8 Inch Steel Plate": [
+        "images/steel.png",
+        "./images/steel.png",
+        "images/Steel.png",
+        "./images/Steel.png"
       ]
     };
 
@@ -1011,6 +1026,9 @@
       wrapper.className = "target-visual";
       wrapper.style.width = `${Math.max(1, widthPx).toFixed(1)}px`;
       wrapper.style.height = `${Math.max(1, heightPx).toFixed(1)}px`;
+      if (shape === "8 Inch Steel Plate") {
+        wrapper.classList.add("texture-circle");
+      }
       const typeLabel = getTargetTypeLabel(shape, type);
 
       const assetConfig = TARGET_IMAGE_ASSETS[shape];
