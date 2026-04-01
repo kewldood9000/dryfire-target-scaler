@@ -520,8 +520,25 @@
       line-height: 1.35;
     }
 
+    .status-note:empty {
+      display: none;
+    }
+
     .status-note.error {
       color: #ffd4d4;
+    }
+
+    .stack-section {
+      display: grid;
+      gap: 8px;
+    }
+
+    .stack-section > h2 {
+      margin-bottom: 0;
+    }
+
+    .new-target-actions {
+      margin-top: 0 !important;
     }
   </style>
 </head>
@@ -529,9 +546,9 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.22</p>
+      <p class="version">Ver. 1.1.24</p>
 
-      <section class="section" aria-labelledby="new-target-title">
+      <section class="section stack-section" aria-labelledby="new-target-title">
         <h2 id="new-target-title">New Target</h2>
         <label>
           New Target Shape
@@ -549,14 +566,14 @@
           New Target Unit
           <select id="newTargetDistanceUnit"></select>
         </label>
-        <div class="row" style="margin-top:10px;">
+        <div class="row new-target-actions">
           <button id="addTargetBtn" class="btn primary" type="button">Add Target</button>
           <button id="resetBtn" class="btn warn" type="button">Reset</button>
         </div>
         <div id="addTargetStatus" class="status-note error" aria-live="polite"></div>
       </section>
 
-      <section class="section" aria-labelledby="targets-title">
+      <section class="section stack-section" aria-labelledby="targets-title">
         <h2 id="targets-title">Target Settings</h2>
         <div id="targetList" aria-live="polite"></div>
       </section>
@@ -1035,10 +1052,21 @@
         );
       });
 
+      const overlapViolations = projectedTargets.some((entry, index) => {
+        for (let i = index + 1; i < projectedTargets.length; i += 1) {
+          const other = projectedTargets[i];
+          const minSeparationPx = getMinimumTargetCenterSeparationPx(entry.wPx, other.wPx);
+          if (Math.abs(entry.xPx - other.xPx) < (minSeparationPx - TARGET_OVERFLOW_EPSILON_PX)) {
+            return true;
+          }
+        }
+        return false;
+      });
+
       return {
         ppi,
         projectedTargets,
-        overflows
+        overflows: overflows || overlapViolations
       };
     }
 
@@ -1078,6 +1106,44 @@
       }
 
       return nextXPx;
+    }
+
+    function findAvailableTargetCenterXPx(existingEntries, newTargetWidthPx, stageWidthPx) {
+      const minCenterXPx = newTargetWidthPx / 2;
+      const maxCenterXPx = stageWidthPx - (newTargetWidthPx / 2);
+      if (!(maxCenterXPx >= minCenterXPx)) return null;
+
+      const forbidden = existingEntries
+        .map((entry) => ({
+          start: entry.xPx - ((entry.wPx + newTargetWidthPx) / 2),
+          end: entry.xPx + ((entry.wPx + newTargetWidthPx) / 2)
+        }))
+        .sort((a, b) => a.start - b.start);
+
+      const allowed = [];
+      let cursor = minCenterXPx;
+      forbidden.forEach((interval) => {
+        const nextStart = clamp(interval.start, minCenterXPx, maxCenterXPx);
+        const nextEnd = clamp(interval.end, minCenterXPx, maxCenterXPx);
+        if (nextStart > cursor) {
+          allowed.push({ start: cursor, end: nextStart });
+        }
+        cursor = Math.max(cursor, nextEnd);
+      });
+      if (cursor < maxCenterXPx) {
+        allowed.push({ start: cursor, end: maxCenterXPx });
+      }
+
+      if (!allowed.length) return null;
+
+      const bestInterval = allowed.reduce((best, interval) => {
+        const bestWidth = best.end - best.start;
+        const intervalWidth = interval.end - interval.start;
+        return intervalWidth > bestWidth ? interval : best;
+      });
+
+      if (bestInterval.end < bestInterval.start) return null;
+      return (bestInterval.start + bestInterval.end) / 2;
     }
 
     function getTargetFamily(shape) {
@@ -1373,7 +1439,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.22",
+        version: "1.1.24",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1414,7 +1480,7 @@
       }
       const presetMap = readPresetMap();
       presetMap[name] = {
-        version: "1.1.22",
+        version: "1.1.24",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1444,7 +1510,7 @@
       const copyName = getUniquePresetCopyName(baseName, presetMap);
 
       presetMap[copyName] = {
-        version: "1.1.22",
+        version: "1.1.24",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1498,7 +1564,7 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.22",
+        version: "1.1.24",
         exportedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1772,6 +1838,31 @@
       }
 
       const stageRect = el.stage.getBoundingClientRect();
+      const currentProjected = computeProjectedTargetsForState(state.targets, {
+        customSpacingsIn: state.customSpacingsIn,
+        stageWidthPx: stageRect.width,
+        stageHeightPx: stageRect.height
+      });
+      const hasManuallyPositionedTargets = state.targets.some((target) => Number.isFinite(toNumber(target.manualScreenXIn)));
+      if (state.spacingMode === "equal" && hasManuallyPositionedTargets && currentProjected) {
+        const nextTargetPreview = computeProjectedTargetsForState([nextTarget], {
+          customSpacingsIn: [],
+          stageWidthPx: stageRect.width,
+          stageHeightPx: stageRect.height
+        });
+        const nextProjected = nextTargetPreview && nextTargetPreview.projectedTargets[0];
+        if (nextProjected) {
+          const availableCenterXPx = findAvailableTargetCenterXPx(
+            currentProjected.projectedTargets,
+            nextProjected.wPx,
+            stageRect.width
+          );
+          if (Number.isFinite(availableCenterXPx)) {
+            nextTarget.manualScreenXIn = (availableCenterXPx - (stageRect.width / 2)) / currentProjected.ppi;
+          }
+        }
+      }
+
       const projected = computeProjectedTargetsForState(simulatedTargets, {
         customSpacingsIn: simulatedSpacings,
         stageWidthPx: stageRect.width,
@@ -1816,15 +1907,9 @@
     }
 
     function resetAll() {
-      state.calibration = getDefaultCalibration();
       state.targets = [];
-      state.newTargetShape = "USPSA";
-      state.newTargetType = "open";
-      state.newTargetDistanceValue = 7;
-      state.newTargetDistanceUnit = "yd";
       state.spacingMode = "equal";
       state.customSpacingsIn = [];
-      state.backgroundMode = "blank";
       targetIdCounter = 1;
       setAddTargetStatus("");
       renderUI();
