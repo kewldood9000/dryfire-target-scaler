@@ -427,7 +427,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.0.4</p>
+      <p class="version">Ver. 1.0.5</p>
 
       <section class="section" aria-labelledby="calibration-title">
         <h2 id="calibration-title">Calibration</h2>
@@ -703,6 +703,12 @@
       const stem = TARGET_IMAGE_STEM_BY_SHAPE[shape];
       const assetKey = getTargetTypeAssetKey(shape, type);
       if (!folder || !stem) return [];
+      if (assetKey === "Open") {
+        return [
+          `${folder}/${stem}.png`,
+          `./${folder}/${stem}.png`
+        ];
+      }
       return [
         `${folder}/${stem}_${assetKey}.png`,
         `./${folder}/${stem}_${assetKey}.png`,
