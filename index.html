@@ -435,7 +435,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.0.2</p>
+      <p class="version">Ver. 1.0.3</p>
 
       <section class="section" aria-labelledby="calibration-title">
         <h2 id="calibration-title">Calibration</h2>
@@ -524,10 +524,7 @@
               <th>Target</th>
               <th>Shape/Type</th>
               <th>Distance</th>
-              <th>Screen Height</th>
-              <th>Screen Width</th>
-              <th>X Offset</th>
-              <th>Angle</th>
+              <th>Target Dimensions</th>
             </tr>
           </thead>
           <tbody id="calcTableBody"></tbody>
@@ -571,22 +568,22 @@
     // You can provide either a single string path or an array of candidate paths.
     const TARGET_IMAGE_ASSETS = {
       USPSA: [
-        "images/uspsa.png",
-        "./images/uspsa.png",
-        "images/USPSA.png",
-        "./images/USPSA.png"
+        "images/uspsa/uspsa.png",
+        "./images/uspsa/uspsa.png",
+        "images/uspsa/USPSA.png",
+        "./images/uspsa/USPSA.png"
       ],
       IPSC: [
-        "images/ipsc.png",
-        "./images/ipsc.png",
-        "images/IPSC.png",
-        "./images/IPSC.png"
+        "image/ipsc/ipsc.png",
+        "./image/ipsc/ipsc.png",
+        "image/ipsc/IPSC.png",
+        "./image/ipsc/IPSC.png"
       ],
       "8 Inch Steel Plate": [
-        "images/steel.png",
-        "./images/steel.png",
-        "images/Steel.png",
-        "./images/Steel.png"
+        "images/steel/steel.png",
+        "./images/steel/steel.png",
+        "images/steel/Steel.png",
+        "./images/steel/Steel.png"
       ]
     };
 
@@ -810,19 +807,19 @@
       },
       "flat-range": {
         fallback: "#7a5a3a",
-        imageUrl: "images/flat-range.png"
+        imageUrl: "images/background/flat-range.png"
       },
       mountain: {
         fallback: "#9caf88",
-        imageUrl: "images/mountain.png"
+        imageUrl: "images/background/mountain.png"
       },
       tron: {
         fallback: "#ff2ea6",
-        imageUrl: "images/tron.png"
+        imageUrl: "images/background/tron.png"
       },
       sky: {
         fallback: "#7ec8ff",
-        imageUrl: "images/sky.png"
+        imageUrl: "images/background/sky.png"
       }
     };
 
@@ -1659,10 +1656,7 @@
           <td>${tp.label}</td>
           <td>${tp.shape} / ${tp.typeLabel}</td>
           <td>${round(tp.distanceValue, 2)} ${tp.distanceUnit}</td>
-          <td>${round(tp.hInOnScreen, 2)} in (${round(tp.hPx, 1)} px)</td>
-          <td>${round(tp.wInOnScreen, 2)} in (${round(tp.wPx, 1)} px)</td>
-          <td>${round(tp.xInOnScreen, 2)} in (${round(tp.xPx - stageW / 2, 1)} px)</td>
-          <td>${round((tp.angleRad * 180) / Math.PI, 2)} deg</td>
+          <td>${round(tp.wInOnScreen, 2)} in x ${round(tp.hInOnScreen, 2)} in (${round(tp.wPx, 1)} px x ${round(tp.hPx, 1)} px)</td>
         `;
         tableFragment.appendChild(row);
       });
