@@ -529,7 +529,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.19</p>
+      <p class="version">Ver. 1.1.22</p>
 
       <section class="section" aria-labelledby="new-target-title">
         <h2 id="new-target-title">New Target</h2>
@@ -615,6 +615,8 @@
             <select id="backgroundMode">
               <option value="blank" selected>Blank</option>
               <option value="flat-range">Flat-Range</option>
+              <option value="horizon">Horizon</option>
+              <option value="military-fob">Military FOB</option>
               <option value="mountain">Mountain</option>
               <option value="sky">Sky</option>
               <option value="tron">Tron</option>
@@ -760,6 +762,14 @@
         fallback: "#7a5a3a",
         imageUrl: "images/background/flat-range.png"
       },
+      horizon: {
+        fallback: "#6b7280",
+        imageUrl: "images/background/horizon.png"
+      },
+      "military-fob": {
+        fallback: "#8a7b5d",
+        imageUrl: "images/background/fob.png"
+      },
       mountain: {
         fallback: "#9caf88",
         imageUrl: "images/background/mountain.png"
@@ -830,6 +840,7 @@
     const inchesPerYard = 36;
     const inchesPerMeter = 39.37007874015748;
     const MAX_TARGET_OBSCURE_RATIO = 0.66;
+    const TARGET_OVERFLOW_EPSILON_PX = 1;
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
@@ -910,6 +921,11 @@
       return Math.max(0, ((widthA + widthB) / 2) - (MAX_TARGET_OBSCURE_RATIO * Math.min(widthA, widthB)));
     }
 
+    function clampTargetCenterXPx(xPx, targetWidthPx, stageWidthPx) {
+      const halfWidthPx = targetWidthPx / 2;
+      return clamp(xPx, halfWidthPx, stageWidthPx - halfWidthPx);
+    }
+
     function computeProjectedTargetsForState(targets, options = {}) {
       const {
         customSpacingsIn = state.customSpacingsIn,
@@ -987,8 +1003,21 @@
 
       projectedTargets.forEach((entry) => {
         const target = targets.find((candidate) => candidate.id === entry.targetId);
+        const manualScreenXIn = target ? toNumber(target.manualScreenXIn) : NaN;
+        if (Number.isFinite(manualScreenXIn)) {
+          entry.xPx = clampTargetCenterXPx(
+            (stageWidthPx / 2) + (manualScreenXIn * ppi),
+            entry.wPx,
+            stageWidthPx
+          );
+          return;
+        }
         const manualScreenOffsetIn = sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0);
-        entry.xPx = entry.baseXPx + manualScreenOffsetIn * ppi;
+        entry.xPx = clampTargetCenterXPx(
+          entry.baseXPx + manualScreenOffsetIn * ppi,
+          entry.wPx,
+          stageWidthPx
+        );
       });
 
       const overflows = projectedTargets.some((entry) => {
@@ -998,7 +1027,12 @@
         const right = entry.xPx + halfW;
         const top = stageHeightPx / 2 - halfH;
         const bottom = stageHeightPx / 2 + halfH;
-        return left < 0 || right > stageWidthPx || top < 0 || bottom > stageHeightPx;
+        return (
+          left < -TARGET_OVERFLOW_EPSILON_PX ||
+          right > stageWidthPx + TARGET_OVERFLOW_EPSILON_PX ||
+          top < -TARGET_OVERFLOW_EPSILON_PX ||
+          bottom > stageHeightPx + TARGET_OVERFLOW_EPSILON_PX
+        );
       });
 
       return {
@@ -1136,6 +1170,7 @@
           distanceValue: sanitizeFiniteNumber(target.distanceValue, 7),
           distanceUnit: target.distanceUnit === "m" ? "m" : "yd",
           manualScreenOffsetIn: sanitizeFiniteNumber(target.manualScreenOffsetIn, 0),
+          manualScreenXIn: Number.isFinite(toNumber(target.manualScreenXIn)) ? toNumber(target.manualScreenXIn) : null,
           positionOrder: sanitizeFiniteNumber(target.positionOrder, 0),
           collapsed: Boolean(target.collapsed)
         })),
@@ -1173,6 +1208,7 @@
           distanceValue: sanitizeFiniteNumber(target && target.distanceValue, 7),
           distanceUnit: target && target.distanceUnit === "m" ? "m" : "yd",
           manualScreenOffsetIn: sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0),
+          manualScreenXIn: Number.isFinite(toNumber(target && target.manualScreenXIn)) ? toNumber(target && target.manualScreenXIn) : null,
           positionOrder: sanitizeFiniteNumber(target && target.positionOrder, index),
           collapsed: Boolean(target && target.collapsed)
         })) : [],
@@ -1337,7 +1373,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.19",
+        version: "1.1.22",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1378,7 +1414,7 @@
       }
       const presetMap = readPresetMap();
       presetMap[name] = {
-        version: "1.1.19",
+        version: "1.1.22",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1408,7 +1444,7 @@
       const copyName = getUniquePresetCopyName(baseName, presetMap);
 
       presetMap[copyName] = {
-        version: "1.1.19",
+        version: "1.1.22",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1462,7 +1498,7 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.19",
+        version: "1.1.22",
         exportedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1723,6 +1759,7 @@
         distanceValue: defaults.distanceValue ?? defaults.distanceYd ?? state.newTargetDistanceValue ?? 7,
         distanceUnit: defaults.distanceUnit || state.newTargetDistanceUnit || "yd",
         manualScreenOffsetIn: sanitizeFiniteNumber(defaults.manualScreenOffsetIn, 0),
+        manualScreenXIn: Number.isFinite(toNumber(defaults.manualScreenXIn)) ? toNumber(defaults.manualScreenXIn) : null,
         positionOrder: sanitizeFiniteNumber(defaults.positionOrder, state.targets.length),
         collapsed: Boolean(defaults.collapsed)
       };
@@ -2167,7 +2204,7 @@
         baseXPx,
         targetWidthPx,
         startClientX: pointerEvent.clientX,
-        startManualScreenOffsetIn: sanitizeFiniteNumber(target.manualScreenOffsetIn, 0),
+        startRenderedXPx: parseFloat(holder.style.left),
         ppi: lastRenderMetrics.ppi,
         stageWidthPx: lastRenderMetrics.stageW
       };
@@ -2185,16 +2222,14 @@
       const {
         holder,
         targetIndex,
-        baseXPx,
         targetWidthPx,
         startClientX,
-        startManualScreenOffsetIn,
+        startRenderedXPx,
         ppi
       } = activeTargetDrag;
 
-      const startXPx = baseXPx + startManualScreenOffsetIn * ppi;
       const deltaPx = pointerEvent.clientX - startClientX;
-      const unclampedXPx = startXPx + deltaPx;
+      const unclampedXPx = startRenderedXPx + deltaPx;
       const draggedTarget = state.targets[targetIndex];
       const clampedXPx = constrainDraggedTargetXPx(
         unclampedXPx,
@@ -2202,9 +2237,9 @@
         targetWidthPx,
         deltaPx
       );
-      const nextManualOffsetIn = (clampedXPx - baseXPx) / ppi;
 
-      state.targets[targetIndex].manualScreenOffsetIn = nextManualOffsetIn;
+      state.targets[targetIndex].manualScreenXIn = (clampedXPx - (lastRenderMetrics.stageW / 2)) / ppi;
+      state.targets[targetIndex].manualScreenOffsetIn = 0;
       holder.style.left = `${clampedXPx}px`;
       pointerEvent.preventDefault();
     }
@@ -2359,8 +2394,22 @@
 
       targetProjected.forEach((tp) => {
         const target = state.targets.find((entry) => entry.id === tp.targetId);
+        const manualScreenXIn = target ? toNumber(target.manualScreenXIn) : NaN;
+        if (Number.isFinite(manualScreenXIn)) {
+          tp.xPx = clampTargetCenterXPx(
+            (stageW / 2) + (manualScreenXIn * ppi),
+            tp.wPx,
+            stageW
+          );
+          tp.xInOnScreen = manualScreenXIn;
+          return;
+        }
         const manualScreenOffsetIn = sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0);
-        tp.xPx = tp.baseXPx + manualScreenOffsetIn * ppi;
+        tp.xPx = clampTargetCenterXPx(
+          tp.baseXPx + manualScreenOffsetIn * ppi,
+          tp.wPx,
+          stageW
+        );
         tp.xInOnScreen = (tp.xPx - stageW / 2) / ppi;
       });
 
@@ -2410,7 +2459,12 @@
         const right = tp.xPx + halfW;
         const top = stageH / 2 - halfH;
         const bottom = stageH / 2 + halfH;
-        if (left < 0 || right > stageW || top < 0 || bottom > stageH) overflowCount += 1;
+        if (
+          left < -TARGET_OVERFLOW_EPSILON_PX ||
+          right > stageW + TARGET_OVERFLOW_EPSILON_PX ||
+          top < -TARGET_OVERFLOW_EPSILON_PX ||
+          bottom > stageH + TARGET_OVERFLOW_EPSILON_PX
+        ) overflowCount += 1;
       });
 
       el.stageTargetLayer.replaceChildren(stageFragment);
