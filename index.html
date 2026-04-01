@@ -427,7 +427,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.0.5</p>
+      <p class="version">Ver. 1.0.6</p>
 
       <section class="section" aria-labelledby="calibration-title">
         <h2 id="calibration-title">Calibration</h2>
@@ -556,9 +556,9 @@
       "8 Inch Steel Plate": "steel"
     };
     const TARGET_IMAGE_FOLDER_BY_SHAPE = {
-      USPSA: "images/uspsa",
-      IPSC: "image/ipsc",
-      "8 Inch Steel Plate": "images/steel"
+      USPSA: "images/targets/uspsa",
+      IPSC: "images/targets/ipsc",
+      "8 Inch Steel Plate": "images/targets/steel"
     };
     const TARGET_IMAGE_STEM_BY_SHAPE = {
       USPSA: "uspsa",
@@ -644,7 +644,6 @@
       targets: [],
       spacingMode: "equal",
       customSpacingsIn: [],
-      imageAssetFailures: {},
       backgroundMode: "blank"
     };
 
@@ -852,18 +851,13 @@
         wrapper.classList.add("texture-circle");
       }
       const typeLabel = getTargetTypeLabel(shape, type);
-      const imageFailureKey = `${shape}:${type}`;
 
       const imageCandidates = getTargetImageCandidates(shape, type);
-      if (imageCandidates.length > 0 && !state.imageAssetFailures[imageFailureKey]) {
+      if (imageCandidates.length > 0) {
         const img = document.createElement("img");
         img.alt = `${labelText} ${shape} ${typeLabel}`;
         let idx = 0;
         img.src = imageCandidates[idx];
-
-        img.addEventListener("load", () => {
-          delete state.imageAssetFailures[imageFailureKey];
-        }, { once: true });
 
         img.addEventListener("error", () => {
           idx += 1;
@@ -871,7 +865,6 @@
             img.src = imageCandidates[idx];
             return;
           }
-          state.imageAssetFailures[imageFailureKey] = imageCandidates.slice();
           wrapper.innerHTML = "";
           wrapper.appendChild(createTargetSVG(shape, widthPx, heightPx, labelText));
         });
@@ -1313,13 +1306,6 @@
           }
         });
       }
-
-      Object.entries(state.imageAssetFailures).forEach(([assetKey, attempted]) => {
-        const parts = assetKey.split(":");
-        const shapeName = parts[0] || assetKey;
-        const typeName = parts[1] ? getTargetTypeLabel(parts[0], parts[1]) : "Open";
-        warnings.push(`${shapeName} ${typeName} image not found. Attempted: ${attempted.join(", ")}. Using built-in vector fallback.`);
-      });
 
       const ppi = errors.length ? NaN : computePPI(resWidthPx, resHeightPx, monitorDiagonalIn);
       if (!errors.length && !(ppi > 0)) {
