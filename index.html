@@ -257,9 +257,57 @@
       box-shadow: var(--shadow);
       background: linear-gradient(180deg, #2b2d31 0%, #1e1f22 100%);
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto auto 1fr auto;
       min-height: calc(100vh - 32px);
       overflow: hidden;
+    }
+
+    .display-calibration {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(35, 36, 40, 0.96);
+      display: grid;
+      gap: 6px;
+    }
+
+    .display-calibration-head,
+    .display-presets-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .display-calibration-head h2,
+    .display-presets-head h2 {
+      margin: 0;
+      font-size: 0.97rem;
+    }
+
+    .display-calibration-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .compact-label {
+      gap: 3px;
+      font-size: 0.76rem;
+      min-width: 0;
+    }
+
+    .compact-label > input,
+    .compact-label > select {
+      padding: 6px 9px;
+    }
+
+    .compact-field-label {
+      display: block;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: clip;
     }
 
     .display-head {
@@ -346,6 +394,14 @@
       position: absolute;
       transform: translate(-50%, -50%);
       display: block;
+      pointer-events: auto;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .stage-target.dragging {
+      cursor: grabbing;
     }
 
     .target-label {
@@ -354,9 +410,11 @@
       top: calc(100% + 5px);
       transform: translateX(-50%);
       font-size: 0.72rem;
-      color: #dbeafe;
+      color: var(--label-color, #dbeafe);
       letter-spacing: 0.01em;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+      text-shadow: var(--label-shadow, 0 1px 4px rgba(0, 0, 0, 0.8));
+      -webkit-text-stroke: 1px rgba(0, 0, 0, 0.9);
+      paint-order: stroke fill;
       white-space: nowrap;
     }
 
@@ -392,30 +450,56 @@
       object-fit: cover;
     }
 
+    .steel-focus-square {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: #000;
+      pointer-events: none;
+    }
+
     .display-foot {
       border-top: 1px solid var(--line);
-      padding: 10px 14px;
-      background: rgba(13, 21, 37, 0.85);
+      padding: 8px 12px;
+      background: rgba(35, 36, 40, 0.96);
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.78rem;
+    .display-presets {
+      display: grid;
+      gap: 6px;
     }
 
-    th,
-    td {
-      border-bottom: 1px solid #3a3d45;
-      text-align: left;
-      padding: 6px 8px;
+    .display-presets-grid {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr);
+      gap: 8px;
+    }
+
+    .display-calibration .hint,
+    .display-presets .hint {
+      margin-top: 0;
+      font-size: 0.73rem;
+      line-height: 1.25;
+    }
+
+    .compact-action-row {
+      flex-wrap: nowrap;
+      gap: 7px;
+      overflow: hidden;
+    }
+
+    .compact-action-row > .btn {
+      flex: 0 0 auto;
+      padding: 6px 9px;
+      font-size: 0.84rem;
+    }
+
+    .inline-calibration-action {
+      align-self: end;
       white-space: nowrap;
-    }
-
-    th {
-      color: #c9ccd1;
-      font-weight: 600;
-      letter-spacing: 0.01em;
+      padding: 6px 10px;
+      font-size: 0.84rem;
     }
 
     .empty-note {
@@ -430,9 +514,9 @@
 
     .status-note {
       min-height: 1.1rem;
-      margin-top: 8px;
+      margin-top: 4px;
       color: var(--muted);
-      font-size: 0.78rem;
+      font-size: 0.74rem;
       line-height: 1.35;
     }
 
@@ -445,69 +529,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.2</p>
-
-      <section class="section" aria-labelledby="calibration-title">
-        <h2 id="calibration-title">Calibration</h2>
-        <div class="grid-4">
-          <label>
-            Viewing Distance (in)
-            <input id="viewDistanceIn" type="number" min="1" step="0.1" value="38" />
-          </label>
-          <label>
-            Monitor Diagonal (in)
-            <input id="monitorDiagonalIn" type="number" min="1" step="0.1" value="27" />
-          </label>
-          <label>
-            Monitor Aspect Ratio
-            <select id="monitorAspectRatio">
-              <option value="16:9">16:9</option>
-              <option value="16:10">16:10</option>
-            </select>
-          </label>
-          <label>
-            Resolution Preset
-            <select id="resolutionPreset"></select>
-          </label>
-        </div>
-        <div class="row" style="margin-top:10px; justify-content:center;">
-          <button id="updateCalibrationBtn" class="btn primary" type="button">Update Calibration</button>
-        </div>
-        <p class="hint">
-          Accuracy depends on correct monitor size, true screen resolution, browser zoom at 100%, and accurate viewing distance.
-        </p>
-      </section>
-
-      <section class="section" aria-labelledby="presets-title">
-        <h2 id="presets-title">Presets</h2>
-        <div class="grid-4">
-          <label>
-            Preset Name
-            <input id="presetName" type="text" maxlength="60" placeholder="Example: 3 Target Drill" />
-          </label>
-          <label>
-            Saved Presets
-            <select id="savedPresets">
-              <option value="">Select a preset</option>
-            </select>
-          </label>
-        </div>
-        <div class="row" style="margin-top:10px;">
-          <button id="savePresetBtn" class="btn primary" type="button">Save</button>
-          <button id="savePresetCopyBtn" class="btn" type="button">Save As Copy</button>
-          <button id="loadPresetBtn" class="btn" type="button">Load</button>
-          <button id="deletePresetBtn" class="btn warn" type="button">Delete</button>
-        </div>
-        <div class="row" style="margin-top:8px;">
-          <button id="exportPresetBtn" class="btn" type="button">Export JSON</button>
-          <button id="importPresetBtn" class="btn" type="button">Import JSON</button>
-          <input id="importPresetFile" class="hidden" type="file" accept="application/json,.json" />
-        </div>
-        <div id="presetStatus" class="status-note" aria-live="polite"></div>
-        <p class="hint">
-          Saves stay on this browser with localStorage. Export JSON to move presets between devices.
-        </p>
-      </section>
+      <p class="version">Ver. 1.1.13</p>
 
       <section class="section" aria-labelledby="targets-title">
         <h2 id="targets-title">Targets</h2>
@@ -515,7 +537,7 @@
           <button id="addTargetBtn" class="btn primary" type="button">Add Target</button>
           <button id="resetBtn" class="btn warn" type="button">Reset</button>
         </div>
-        <p class="hint">Targets lower in the list render on top of targets above them.</p>
+        <p class="hint">Targets higher in the list render on top of targets below them.</p>
         <div id="targetList" aria-live="polite"></div>
       </section>
 
@@ -535,6 +557,36 @@
     </aside>
 
     <section class="display" aria-label="Target Display">
+      <section class="display-calibration" aria-labelledby="calibration-title">
+        <div class="display-calibration-head">
+          <h2 id="calibration-title">Calibration</h2>
+        </div>
+        <div class="display-calibration-grid">
+          <label class="compact-label">
+            <span class="compact-field-label">Viewing Distance (in)</span>
+            <input id="viewDistanceIn" type="number" min="1" step="0.1" value="38" />
+          </label>
+          <label class="compact-label">
+            <span class="compact-field-label">Monitor Diagonal (in)</span>
+            <input id="monitorDiagonalIn" type="number" min="1" step="0.1" value="27" />
+          </label>
+          <label class="compact-label">
+            <span class="compact-field-label">Monitor Aspect Ratio</span>
+            <select id="monitorAspectRatio">
+              <option value="16:9">16:9</option>
+              <option value="16:10">16:10</option>
+            </select>
+          </label>
+          <label class="compact-label">
+            <span class="compact-field-label">Resolution Preset</span>
+            <select id="resolutionPreset"></select>
+          </label>
+          <button id="updateCalibrationBtn" class="btn primary inline-calibration-action" type="button">Update Calibration</button>
+        </div>
+        <p class="hint">
+          Accuracy depends on correct monitor size, true screen resolution, browser zoom at 100%, and accurate viewing distance.
+        </p>
+      </section>
       <div class="display-head">
         <strong>Projected Target Display</strong>
         <div class="display-head-right">
@@ -560,17 +612,36 @@
         </div>
       </div>
       <div class="display-foot">
-        <table aria-label="Per-target calculations">
-          <thead>
-            <tr>
-              <th>Target</th>
-              <th>Shape/Type</th>
-              <th>Distance</th>
-              <th>Target Dimensions</th>
-            </tr>
-          </thead>
-          <tbody id="calcTableBody"></tbody>
-        </table>
+        <section class="display-presets" aria-labelledby="presets-title">
+          <div class="display-presets-head">
+            <h2 id="presets-title">Presets</h2>
+          </div>
+          <div class="display-presets-grid">
+            <label class="compact-label">
+              <span class="compact-field-label">Preset Name</span>
+              <input id="presetName" type="text" maxlength="60" placeholder="Example: 3 Target Drill" />
+            </label>
+            <label class="compact-label">
+              <span class="compact-field-label">Saved Presets</span>
+              <select id="savedPresets">
+                <option value="">Select a preset</option>
+              </select>
+            </label>
+          </div>
+          <div class="row compact-action-row" style="margin-top:4px;">
+            <button id="savePresetBtn" class="btn primary" type="button">Save</button>
+            <button id="savePresetCopyBtn" class="btn" type="button">Save As Copy</button>
+            <button id="loadPresetBtn" class="btn" type="button">Load</button>
+            <button id="deletePresetBtn" class="btn warn" type="button">Delete</button>
+            <button id="exportPresetBtn" class="btn" type="button">Export JSON</button>
+            <button id="importPresetBtn" class="btn" type="button">Import JSON</button>
+            <input id="importPresetFile" class="hidden" type="file" accept="application/json,.json" />
+          </div>
+          <div id="presetStatus" class="status-note" aria-live="polite"></div>
+          <p class="hint">
+            Saves stay on this browser with localStorage. Export JSON to move presets between devices.
+          </p>
+        </section>
       </div>
     </section>
   </main>
@@ -681,6 +752,29 @@
       }
     };
 
+    const TARGET_LABEL_APPEARANCE_BY_BACKGROUND = {
+      blank: {
+        color: "#f3f4f6",
+        shadow: "0 1px 4px rgba(0, 0, 0, 0.92), 0 0 1px rgba(0, 0, 0, 0.85)"
+      },
+      "flat-range": {
+        color: "#f9fafb",
+        shadow: "0 1px 4px rgba(0, 0, 0, 0.88), 0 0 1px rgba(0, 0, 0, 0.82)"
+      },
+      mountain: {
+        color: "#f9fafb",
+        shadow: "0 1px 4px rgba(0, 0, 0, 0.9), 0 0 1px rgba(0, 0, 0, 0.84)"
+      },
+      sky: {
+        color: "#0f172a",
+        shadow: "0 1px 4px rgba(0, 0, 0, 0.6), 0 0 1px rgba(0, 0, 0, 0.45)"
+      },
+      tron: {
+        color: "#111827",
+        shadow: "0 1px 4px rgba(0, 0, 0, 0.68), 0 0 1px rgba(0, 0, 0, 0.5)"
+      }
+    };
+
     // =====================
     // UI State
     // =====================
@@ -701,6 +795,8 @@
 
     let targetIdCounter = 1;
     let sessionSaveTimer = null;
+    let activeTargetDrag = null;
+    let lastRenderMetrics = null;
 
     // =====================
     // Helpers / Math
@@ -748,6 +844,33 @@
       return Number.isFinite(parsed) ? parsed : fallback;
     }
 
+    function getTargetLabelAppearance(backgroundMode) {
+      return TARGET_LABEL_APPEARANCE_BY_BACKGROUND[backgroundMode] || TARGET_LABEL_APPEARANCE_BY_BACKGROUND.blank;
+    }
+
+    function getTargetsInSpatialOrder() {
+      return state.targets
+        .slice()
+        .sort((a, b) => {
+          const aOrder = sanitizeFiniteNumber(a.positionOrder, Number.MAX_SAFE_INTEGER);
+          const bOrder = sanitizeFiniteNumber(b.positionOrder, Number.MAX_SAFE_INTEGER);
+          if (aOrder !== bOrder) return aOrder - bOrder;
+          return sanitizeFiniteNumber(a.id, 0) - sanitizeFiniteNumber(b.id, 0);
+        });
+    }
+
+    function normalizeTargetPositionOrders() {
+      getTargetsInSpatialOrder().forEach((target, index) => {
+        target.positionOrder = index;
+      });
+    }
+
+    function getTargetDisplayLabel(target) {
+      const spatialTargets = getTargetsInSpatialOrder();
+      const displayIndex = spatialTargets.findIndex((entry) => entry.id === target.id);
+      return `T${displayIndex + 1}`;
+    }
+
     function getTargetFamily(shape) {
       return TARGET_FAMILY_BY_SHAPE[shape] || "uspsa";
     }
@@ -781,6 +904,11 @@
       const stem = TARGET_IMAGE_STEM_BY_SHAPE[shape];
       const assetKey = getTargetTypeAssetKey(shape, type);
       if (!folder || !stem) return [];
+      if (shape === "8 Inch Steel Plate" && type === "focusTape") {
+        return [
+          `${folder}/${stem}.png`
+        ];
+      }
       if (assetKey === "Open") {
         return [
           `${folder}/${stem}.png`
@@ -820,6 +948,8 @@
           type: String(target.type || "open"),
           distanceValue: sanitizeFiniteNumber(target.distanceValue, 7),
           distanceUnit: target.distanceUnit === "m" ? "m" : "yd",
+          manualScreenOffsetIn: sanitizeFiniteNumber(target.manualScreenOffsetIn, 0),
+          positionOrder: sanitizeFiniteNumber(target.positionOrder, 0),
           collapsed: Boolean(target.collapsed)
         })),
         spacingMode: state.spacingMode === "custom" ? "custom" : "equal",
@@ -851,6 +981,8 @@
           type: String(target && target.type ? target.type : "open"),
           distanceValue: sanitizeFiniteNumber(target && target.distanceValue, 7),
           distanceUnit: target && target.distanceUnit === "m" ? "m" : "yd",
+          manualScreenOffsetIn: sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0),
+          positionOrder: sanitizeFiniteNumber(target && target.positionOrder, index),
           collapsed: Boolean(target && target.collapsed)
         })) : [],
         spacingMode: source.spacingMode === "custom" ? "custom" : "equal",
@@ -861,6 +993,12 @@
       };
 
       normalized.targets.forEach((target) => normalizeTargetTypeForShape(target));
+      normalized.targets
+        .slice()
+        .sort((a, b) => sanitizeFiniteNumber(a.positionOrder, 0) - sanitizeFiniteNumber(b.positionOrder, 0))
+        .forEach((target, index) => {
+          target.positionOrder = index;
+        });
       return normalized;
     }
 
@@ -885,6 +1023,7 @@
       state.spacingMode = nextState.spacingMode;
       state.customSpacingsIn = nextState.customSpacingsIn;
       state.backgroundMode = nextState.backgroundMode;
+      normalizeTargetPositionOrders();
       syncCustomSpacingLength();
       targetIdCounter = Math.max(1, ...state.targets.map((target) => sanitizeFiniteNumber(target.id, 0) + 1));
       renderUI();
@@ -999,7 +1138,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.1",
+        version: "1.1.13",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1040,7 +1179,7 @@
       }
       const presetMap = readPresetMap();
       presetMap[name] = {
-        version: "1.1.1",
+        version: "1.1.13",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1070,7 +1209,7 @@
       const copyName = getUniquePresetCopyName(baseName, presetMap);
 
       presetMap[copyName] = {
-        version: "1.1.1",
+        version: "1.1.13",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1124,7 +1263,7 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.1",
+        version: "1.1.13",
         exportedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1132,9 +1271,17 @@
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, "0");
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const year = String(now.getFullYear());
+      const stamp = `${day}${month}${year}`;
+      const presetName = String(el.presetName.value || el.savedPresets.value || "Unnamed").trim() || "Unnamed";
+      const safePresetName = presetName
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+        .replace(/\s+/g, "_");
       link.href = url;
-      link.download = `dryfire-preset-${stamp}.json`;
+      link.download = `Dryfire_Preset_${safePresetName}_${stamp}.json`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -1239,14 +1386,14 @@
       stageTargetLayer: document.getElementById("stageTargetLayer"),
       alerts: document.getElementById("alerts"),
       metaReadout: document.getElementById("metaReadout"),
-      calcTableBody: document.getElementById("calcTableBody"),
       emptyNote: document.getElementById("emptyNote")
     };
 
     // =====================
     // Rendering Targets (SVG)
     // =====================
-    function createTargetVisual(shape, type, widthPx, heightPx, labelText) {
+    function createTargetVisual(shape, type, widthPx, heightPx, labelText, options = {}) {
+      const { focusSquarePx = 0 } = options;
       const wrapper = document.createElement("div");
       wrapper.className = "target-visual";
       wrapper.style.width = `${Math.max(1, widthPx).toFixed(1)}px`;
@@ -1255,6 +1402,14 @@
         wrapper.classList.add("texture-circle");
       }
       const typeLabel = getTargetTypeLabel(shape, type);
+      const appendSteelFocusSquare = () => {
+        if (!(shape === "8 Inch Steel Plate" && type === "focusTape" && focusSquarePx > 0)) return;
+        const square = document.createElement("div");
+        square.className = "steel-focus-square";
+        square.style.width = `${Math.max(1, focusSquarePx).toFixed(1)}px`;
+        square.style.height = `${Math.max(1, focusSquarePx).toFixed(1)}px`;
+        wrapper.appendChild(square);
+      };
 
       const imageCandidates = getTargetImageCandidates(shape, type);
       if (imageCandidates.length > 0) {
@@ -1271,13 +1426,16 @@
           }
           wrapper.innerHTML = "";
           wrapper.appendChild(createTargetSVG(shape, widthPx, heightPx, labelText));
+          appendSteelFocusSquare();
         });
 
         wrapper.appendChild(img);
+        appendSteelFocusSquare();
         return wrapper;
       }
 
       wrapper.appendChild(createTargetSVG(shape, widthPx, heightPx, labelText));
+      appendSteelFocusSquare();
       return wrapper;
     }
 
@@ -1359,9 +1517,12 @@
         type: defaults.type || "open",
         distanceValue: defaults.distanceValue ?? defaults.distanceYd ?? 7,
         distanceUnit: defaults.distanceUnit || "yd",
+        manualScreenOffsetIn: sanitizeFiniteNumber(defaults.manualScreenOffsetIn, 0),
+        positionOrder: sanitizeFiniteNumber(defaults.positionOrder, state.targets.length),
         collapsed: Boolean(defaults.collapsed)
       });
       normalizeTargetTypeForShape(state.targets[state.targets.length - 1]);
+      normalizeTargetPositionOrders();
       syncCustomSpacingLength();
       renderUI();
       recalcAndRender();
@@ -1370,6 +1531,7 @@
 
     function removeTarget(index) {
       state.targets.splice(index, 1);
+      normalizeTargetPositionOrders();
       syncCustomSpacingLength();
       renderUI();
       recalcAndRender();
@@ -1383,7 +1545,6 @@
 
       const [moved] = state.targets.splice(fromIndex, 1);
       state.targets.splice(toIndex, 0, moved);
-      syncCustomSpacingLength();
       renderUI();
       recalcAndRender();
       scheduleSessionSave();
@@ -1427,7 +1588,7 @@
 
         const title = document.createElement("div");
         title.className = "target-title";
-        title.textContent = `T${index + 1}`;
+        title.textContent = getTargetDisplayLabel(target);
 
         const actions = document.createElement("div");
         actions.className = "target-head-actions";
@@ -1584,6 +1745,8 @@
     }
 
     function renderSpacingControls() {
+      normalizeTargetPositionOrders();
+      const spatialTargets = getTargetsInSpatialOrder();
       const show = state.targets.length >= 2;
       el.spacingSection.classList.toggle("hidden", !show);
       if (!show) {
@@ -1599,9 +1762,9 @@
         return;
       }
 
-      for (let i = 0; i < state.targets.length - 1; i += 1) {
+      for (let i = 0; i < spatialTargets.length - 1; i += 1) {
         const label = document.createElement("label");
-        label.textContent = `Distance between T${i + 1} and T${i + 2} (in)`;
+        label.textContent = `Distance between ${getTargetDisplayLabel(spatialTargets[i])} and ${getTargetDisplayLabel(spatialTargets[i + 1])} (in)`;
         const input = document.createElement("input");
         input.type = "number";
         input.min = "0";
@@ -1717,12 +1880,73 @@
       setPresetStatus("Calibration updated.");
     }
 
+    function beginTargetDrag(pointerEvent, holder, targetIndex, baseXPx, targetWidthPx) {
+      if (!lastRenderMetrics || pointerEvent.button !== 0) return;
+      const target = state.targets[targetIndex];
+      if (!target) return;
+
+      activeTargetDrag = {
+        pointerId: pointerEvent.pointerId,
+        holder,
+        targetIndex,
+        baseXPx,
+        targetWidthPx,
+        startClientX: pointerEvent.clientX,
+        startManualScreenOffsetIn: sanitizeFiniteNumber(target.manualScreenOffsetIn, 0),
+        ppi: lastRenderMetrics.ppi,
+        stageWidthPx: lastRenderMetrics.stageW
+      };
+
+      holder.classList.add("dragging");
+      if (typeof holder.setPointerCapture === "function") {
+        holder.setPointerCapture(pointerEvent.pointerId);
+      }
+      pointerEvent.preventDefault();
+    }
+
+    function handleTargetDragMove(pointerEvent) {
+      if (!activeTargetDrag || pointerEvent.pointerId !== activeTargetDrag.pointerId) return;
+
+      const {
+        holder,
+        targetIndex,
+        baseXPx,
+        targetWidthPx,
+        startClientX,
+        startManualScreenOffsetIn,
+        ppi,
+        stageWidthPx
+      } = activeTargetDrag;
+
+      const startXPx = baseXPx + startManualScreenOffsetIn * ppi;
+      const deltaPx = pointerEvent.clientX - startClientX;
+      const unclampedXPx = startXPx + deltaPx;
+      const halfWidthPx = targetWidthPx / 2;
+      const clampedXPx = clamp(unclampedXPx, halfWidthPx, stageWidthPx - halfWidthPx);
+      const nextManualOffsetIn = (clampedXPx - baseXPx) / ppi;
+
+      state.targets[targetIndex].manualScreenOffsetIn = nextManualOffsetIn;
+      holder.style.left = `${clampedXPx}px`;
+      pointerEvent.preventDefault();
+    }
+
+    function endTargetDrag(pointerEvent) {
+      if (!activeTargetDrag || pointerEvent.pointerId !== activeTargetDrag.pointerId) return;
+      const { holder } = activeTargetDrag;
+      holder.classList.remove("dragging");
+      activeTargetDrag = null;
+      recalcAndRender();
+      scheduleSessionSave();
+    }
+
     // =====================
     // Main Compute + Render
     // =====================
     function recalcAndRender() {
+      normalizeTargetPositionOrders();
       const errors = [];
       const warnings = [];
+      const spatialTargets = getTargetsInSpatialOrder();
 
       const viewDistanceIn = toNumber(state.calibration.viewDistanceIn);
       const monitorDiagonalIn = toNumber(state.calibration.monitorDiagonalIn);
@@ -1733,18 +1957,20 @@
       if (!(monitorDiagonalIn > 0)) errors.push("Monitor diagonal must be greater than 0 inches.");
       if (!(resWidthPx > 0) || !(resHeightPx > 0)) errors.push("Screen resolution values must be greater than 0.");
 
-      const distancesIn = state.targets.map((t, i) => {
+      const distancesIn = spatialTargets.map((t, i) => {
         const unit = t.distanceUnit || "yd";
         const d = distanceToInches(t.distanceValue, unit);
         const unitName = unit === "m" ? "meters" : "yards";
-        if (!(d > 0)) errors.push(`T${i + 1}: distance must be greater than 0 ${unitName}.`);
+        if (!(d > 0)) errors.push(`${getTargetDisplayLabel(t)}: distance must be greater than 0 ${unitName}.`);
         return d;
       });
 
       if (state.spacingMode === "custom") {
         state.customSpacingsIn.forEach((gap, i) => {
           if (!(toNumber(gap) >= 0)) {
-            errors.push(`Spacing between T${i + 1} and T${i + 2} must be 0 or greater.`);
+            const leftLabel = spatialTargets[i] ? getTargetDisplayLabel(spatialTargets[i]) : `T${i + 1}`;
+            const rightLabel = spatialTargets[i + 1] ? getTargetDisplayLabel(spatialTargets[i + 1]) : `T${i + 2}`;
+            errors.push(`Spacing between ${leftLabel} and ${rightLabel} must be 0 or greater.`);
           }
         });
       }
@@ -1756,7 +1982,6 @@
 
       renderAlerts(errors, warnings);
       el.stageTargetLayer.replaceChildren();
-      el.calcTableBody.replaceChildren();
 
       if (state.targets.length === 0) {
         el.emptyNote.classList.remove("hidden");
@@ -1773,25 +1998,30 @@
       const stageRect = el.stage.getBoundingClientRect();
       const stageW = stageRect.width;
       const stageH = stageRect.height;
+      const labelAppearance = getTargetLabelAppearance(state.backgroundMode);
+      lastRenderMetrics = { stageW, stageH, ppi };
 
       let overflowCount = 0;
       const stageFragment = document.createDocumentFragment();
-      const tableFragment = document.createDocumentFragment();
 
-      const targetProjected = state.targets.map((t, i) => {
+      const targetProjected = spatialTargets.map((t, i) => {
         const def = TARGET_DEFS[t.shape] || TARGET_DEFS.USPSA;
         const distIn = distancesIn[i];
         const aspectRatio = def.widthIn / def.heightIn;
 
         const hInOnScreen = projectedSizeInches(def.heightIn, distIn, viewDistanceIn);
         const wInOnScreen = hInOnScreen * aspectRatio;
+        const focusSquareInOnScreen = t.shape === "8 Inch Steel Plate" && t.type === "focusTape"
+          ? projectedSizeInches(1, distIn, viewDistanceIn)
+          : 0;
 
         const hPx = hInOnScreen * ppi;
         const wPx = wInOnScreen * ppi;
+        const focusSquarePx = focusSquareInOnScreen * ppi;
 
         return {
-          index: i,
-          label: `T${i + 1}`,
+          targetId: t.id,
+          label: getTargetDisplayLabel(t),
           shape: t.shape,
           type: t.type,
           typeLabel: getTargetTypeLabel(t.shape, t.type),
@@ -1801,8 +2031,11 @@
           def,
           hInOnScreen,
           wInOnScreen,
+          focusSquareInOnScreen,
           hPx,
           wPx,
+          focusSquarePx,
+          baseXPx: stageW / 2,
           xPx: stageW / 2,
           xInOnScreen: 0,
           angleRad: 0
@@ -1816,6 +2049,7 @@
         );
         const xs = equalLayout.xPositions;
         targetProjected.forEach((tp, i) => {
+          tp.baseXPx = xs[i];
           tp.xPx = xs[i];
           tp.xInOnScreen = (tp.xPx - stageW / 2) / ppi;
           tp.angleRad = Math.atan(tp.xInOnScreen / viewDistanceIn);
@@ -1833,6 +2067,7 @@
           const angle = Math.atan(realX[i] / tp.distanceIn);
           const xIn = viewDistanceIn * Math.tan(angle);
           const xPx = stageW / 2 + xIn * ppi;
+          tp.baseXPx = xPx;
           tp.xPx = xPx;
           tp.xInOnScreen = xIn;
           tp.angleRad = angle;
@@ -1840,16 +2075,37 @@
       }
 
       targetProjected.forEach((tp) => {
+        const target = state.targets.find((entry) => entry.id === tp.targetId);
+        const manualScreenOffsetIn = sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0);
+        tp.xPx = tp.baseXPx + manualScreenOffsetIn * ppi;
+        tp.xInOnScreen = (tp.xPx - stageW / 2) / ppi;
+      });
+
+      const projectedById = new Map(targetProjected.map((tp) => [tp.targetId, tp]));
+
+      state.targets.slice().reverse().forEach((target, layerIndex) => {
+        const tp = projectedById.get(target.id);
+        if (!tp) return;
         const holder = document.createElement("div");
         holder.className = "stage-target";
         holder.style.left = `${tp.xPx}px`;
         holder.style.top = `${stageH / 2}px`;
+        holder.dataset.targetIndex = String(state.targets.findIndex((entry) => entry.id === target.id));
+        holder.dataset.baseXPx = String(tp.baseXPx);
+        holder.dataset.targetWidthPx = String(tp.wPx);
+        holder.addEventListener("pointerdown", (pointerEvent) => {
+          beginTargetDrag(pointerEvent, holder, state.targets.findIndex((entry) => entry.id === target.id), tp.baseXPx, tp.wPx);
+        });
 
-        const visual = createTargetVisual(tp.shape, tp.type, tp.wPx, tp.hPx, tp.label);
+        const visual = createTargetVisual(tp.shape, tp.type, tp.wPx, tp.hPx, tp.label, {
+          focusSquarePx: tp.focusSquarePx
+        });
 
         const caption = document.createElement("div");
         caption.className = "target-label";
         caption.textContent = `${tp.label} | ${round(tp.distanceValue, 1)} ${tp.distanceUnit}`;
+        caption.style.setProperty("--label-color", labelAppearance.color);
+        caption.style.setProperty("--label-shadow", labelAppearance.shadow);
 
         holder.append(visual, caption);
         stageFragment.appendChild(holder);
@@ -1861,19 +2117,9 @@
         const top = stageH / 2 - halfH;
         const bottom = stageH / 2 + halfH;
         if (left < 0 || right > stageW || top < 0 || bottom > stageH) overflowCount += 1;
-
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${tp.label}</td>
-          <td>${tp.shape} / ${tp.typeLabel}</td>
-          <td>${round(tp.distanceValue, 2)} ${tp.distanceUnit}</td>
-          <td>${round(tp.wInOnScreen, 2)} in x ${round(tp.hInOnScreen, 2)} in (${round(tp.wPx, 1)} px x ${round(tp.hPx, 1)} px)</td>
-        `;
-        tableFragment.appendChild(row);
       });
 
       el.stageTargetLayer.replaceChildren(stageFragment);
-      el.calcTableBody.replaceChildren(tableFragment);
 
       if (overflowCount > 0) {
         warnings.push(`${overflowCount} target(s) overflow the current display area. Adjust distances, spacing, or monitor inputs.`);
@@ -1952,6 +2198,9 @@
       scheduleSessionSave();
     });
 
+    window.addEventListener("pointermove", handleTargetDragMove);
+    window.addEventListener("pointerup", endTargetDrag);
+    window.addEventListener("pointercancel", endTargetDrag);
     window.addEventListener("resize", recalcAndRender);
 
     // =====================
