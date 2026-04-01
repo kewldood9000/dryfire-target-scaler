@@ -552,7 +552,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.27</p>
+      <p class="version">Ver. 1.1.28</p>
 
       <section class="section stack-section" aria-labelledby="new-target-title">
         <h2 id="new-target-title">New Target</h2>
@@ -1450,7 +1450,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.27",
+        version: "1.1.28",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1491,7 +1491,7 @@
       }
       const presetMap = readPresetMap();
       presetMap[name] = {
-        version: "1.1.27",
+        version: "1.1.28",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1521,7 +1521,7 @@
       const copyName = getUniquePresetCopyName(baseName, presetMap);
 
       presetMap[copyName] = {
-        version: "1.1.27",
+        version: "1.1.28",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1575,7 +1575,7 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.27",
+        version: "1.1.28",
         exportedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -2426,7 +2426,7 @@
         const hInOnScreen = projectedSizeInches(def.heightIn, distIn, viewDistanceIn);
         const wInOnScreen = hInOnScreen * aspectRatio;
         const focusSquareInOnScreen = t.shape === "8 Inch Steel Plate" && t.type === "focusTape"
-          ? projectedSizeInches(1, distIn, viewDistanceIn)
+          ? projectedSizeInches(0.75, distIn, viewDistanceIn)
           : 0;
 
         const hPx = hInOnScreen * ppi;
