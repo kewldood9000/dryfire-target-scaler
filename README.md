@@ -15,14 +15,14 @@ This app scales and positions targets so they appear as if they are located at r
   - Steel
 - Target variations:
   - Full size
-  - Partial
-  - Head-only
+  - 1 inch focus tape
   - No-shoot overlays
 - Independent distance setting per target
 - Realistic scaling based on angular size
 - Multiple target spacing modes:
   - Equal spacing (screen-based)
   - Custom real-world spacing (inches)
+  - Manual mouse drag
 - Accurate lateral positioning using geometry
 - Live updates as you adjust inputs
 
