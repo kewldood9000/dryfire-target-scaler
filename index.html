@@ -504,8 +504,14 @@
 
     .empty-note {
       color: var(--muted);
-      font-size: 0.88rem;
-      padding: 14px;
+      font-size: 1rem;
+      padding: 14px 16px;
+      background: rgba(0, 0, 0, 0.48);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      width: fit-content;
+      max-width: calc(100% - 24px);
+      margin: 14px;
     }
 
     .hidden {
@@ -546,7 +552,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.24</p>
+      <p class="version">Ver. 1.1.25</p>
 
       <section class="section stack-section" aria-labelledby="new-target-title">
         <h2 id="new-target-title">New Target</h2>
@@ -1439,7 +1445,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.24",
+        version: "1.1.25",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1480,7 +1486,7 @@
       }
       const presetMap = readPresetMap();
       presetMap[name] = {
-        version: "1.1.24",
+        version: "1.1.25",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1510,7 +1516,7 @@
       const copyName = getUniquePresetCopyName(baseName, presetMap);
 
       presetMap[copyName] = {
-        version: "1.1.24",
+        version: "1.1.25",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1564,7 +1570,7 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.24",
+        version: "1.1.25",
         exportedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
