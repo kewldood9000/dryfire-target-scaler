@@ -421,13 +421,25 @@
     .hidden {
       display: none !important;
     }
+
+    .status-note {
+      min-height: 1.1rem;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
+    .status-note.error {
+      color: #ffd4d4;
+    }
   </style>
 </head>
 <body>
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.0.8</p>
+      <p class="version">Ver. 1.1.1</p>
 
       <section class="section" aria-labelledby="calibration-title">
         <h2 id="calibration-title">Calibration</h2>
@@ -457,6 +469,37 @@
         </div>
         <p class="hint">
           Accuracy depends on correct monitor size, true screen resolution, browser zoom at 100%, and accurate viewing distance.
+        </p>
+      </section>
+
+      <section class="section" aria-labelledby="presets-title">
+        <h2 id="presets-title">Presets</h2>
+        <div class="grid-4">
+          <label>
+            Preset Name
+            <input id="presetName" type="text" maxlength="60" placeholder="Example: 3 Target Drill" />
+          </label>
+          <label>
+            Saved Presets
+            <select id="savedPresets">
+              <option value="">Select a preset</option>
+            </select>
+          </label>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="savePresetBtn" class="btn primary" type="button">Save</button>
+          <button id="savePresetCopyBtn" class="btn" type="button">Save As Copy</button>
+          <button id="loadPresetBtn" class="btn" type="button">Load</button>
+          <button id="deletePresetBtn" class="btn warn" type="button">Delete</button>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <button id="exportPresetBtn" class="btn" type="button">Export JSON</button>
+          <button id="importPresetBtn" class="btn" type="button">Import JSON</button>
+          <input id="importPresetFile" class="hidden" type="file" accept="application/json,.json" />
+        </div>
+        <div id="presetStatus" class="status-note" aria-live="polite"></div>
+        <p class="hint">
+          Saves stay on this browser with localStorage. Export JSON to move presets between devices.
         </p>
       </section>
 
@@ -550,6 +593,8 @@
       "8 Inch Steel Plate": "#52525b"
     };
     const TARGET_SIZE_STORAGE_KEY = "dryfire_target_real_world_sizes_v1";
+    const PRESET_STORAGE_KEY = "dryfire_presets_v1";
+    const SESSION_STORAGE_KEY = "dryfire_recent_session_v1";
     const TARGET_FAMILY_BY_SHAPE = {
       USPSA: "uspsa",
       IPSC: "ipsc",
@@ -648,6 +693,7 @@
     };
 
     let targetIdCounter = 1;
+    let sessionSaveTimer = null;
 
     // =====================
     // Helpers / Math
@@ -667,6 +713,32 @@
     function round(value, digits = 2) {
       const p = Math.pow(10, digits);
       return Math.round(value * p) / p;
+    }
+
+    function getDefaultCalibration() {
+      return {
+        viewDistanceIn: 38,
+        monitorDiagonalIn: 27,
+        aspectRatio: "16:9",
+        resolutionPreset: "2560x1440",
+        resWidthPx: 2560,
+        resHeightPx: 1440
+      };
+    }
+
+    function getDefaultAppState() {
+      return {
+        calibration: getDefaultCalibration(),
+        targets: [],
+        spacingMode: "equal",
+        customSpacingsIn: [],
+        backgroundMode: "blank"
+      };
+    }
+
+    function sanitizeFiniteNumber(value, fallback) {
+      const parsed = toNumber(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
     }
 
     function getTargetFamily(shape) {
@@ -713,6 +785,112 @@
       ];
     }
 
+    function getRealWorldTargetSizeSnapshot() {
+      return Object.fromEntries(
+        Object.entries(TARGET_DEFS).map(([shape, def]) => [
+          shape,
+          {
+            widthIn: sanitizeFiniteNumber(def.widthIn, 0),
+            heightIn: sanitizeFiniteNumber(def.heightIn, 0)
+          }
+        ])
+      );
+    }
+
+    function getSerializableAppState() {
+      return {
+        calibration: {
+          viewDistanceIn: sanitizeFiniteNumber(state.calibration.viewDistanceIn, 38),
+          monitorDiagonalIn: sanitizeFiniteNumber(state.calibration.monitorDiagonalIn, 27),
+          aspectRatio: RESOLUTION_PRESETS[state.calibration.aspectRatio] ? state.calibration.aspectRatio : "16:9",
+          resolutionPreset: String(state.calibration.resolutionPreset || "2560x1440"),
+          resWidthPx: sanitizeFiniteNumber(state.calibration.resWidthPx, 2560),
+          resHeightPx: sanitizeFiniteNumber(state.calibration.resHeightPx, 1440)
+        },
+        targets: state.targets.map((target) => ({
+          id: sanitizeFiniteNumber(target.id, 0),
+          shape: TARGET_DEFS[target.shape] ? target.shape : "USPSA",
+          type: String(target.type || "open"),
+          distanceValue: sanitizeFiniteNumber(target.distanceValue, 7),
+          distanceUnit: target.distanceUnit === "m" ? "m" : "yd",
+          collapsed: Boolean(target.collapsed)
+        })),
+        spacingMode: state.spacingMode === "custom" ? "custom" : "equal",
+        customSpacingsIn: state.customSpacingsIn.map((gap) => sanitizeFiniteNumber(gap, 36)),
+        backgroundMode: STAGE_BACKGROUNDS[state.backgroundMode] ? state.backgroundMode : "blank"
+      };
+    }
+
+    function normalizeImportedAppState(rawState) {
+      const defaults = getDefaultAppState();
+      const source = rawState && typeof rawState === "object" ? rawState : {};
+      const calibration = source.calibration && typeof source.calibration === "object" ? source.calibration : {};
+      const aspectRatio = RESOLUTION_PRESETS[calibration.aspectRatio] ? calibration.aspectRatio : defaults.calibration.aspectRatio;
+      const resolutionPreset = String(calibration.resolutionPreset || defaults.calibration.resolutionPreset);
+      const parsedPreset = parseResolutionValue(resolutionPreset);
+
+      const normalized = {
+        calibration: {
+          viewDistanceIn: sanitizeFiniteNumber(calibration.viewDistanceIn, defaults.calibration.viewDistanceIn),
+          monitorDiagonalIn: sanitizeFiniteNumber(calibration.monitorDiagonalIn, defaults.calibration.monitorDiagonalIn),
+          aspectRatio,
+          resolutionPreset,
+          resWidthPx: sanitizeFiniteNumber(calibration.resWidthPx, parsedPreset.width || defaults.calibration.resWidthPx),
+          resHeightPx: sanitizeFiniteNumber(calibration.resHeightPx, parsedPreset.height || defaults.calibration.resHeightPx)
+        },
+        targets: Array.isArray(source.targets) ? source.targets.map((target, index) => ({
+          id: sanitizeFiniteNumber(target && target.id, index + 1),
+          shape: target && TARGET_DEFS[target.shape] ? target.shape : "USPSA",
+          type: String(target && target.type ? target.type : "open"),
+          distanceValue: sanitizeFiniteNumber(target && target.distanceValue, 7),
+          distanceUnit: target && target.distanceUnit === "m" ? "m" : "yd",
+          collapsed: Boolean(target && target.collapsed)
+        })) : [],
+        spacingMode: source.spacingMode === "custom" ? "custom" : "equal",
+        customSpacingsIn: Array.isArray(source.customSpacingsIn)
+          ? source.customSpacingsIn.map((gap) => sanitizeFiniteNumber(gap, 36))
+          : [],
+        backgroundMode: STAGE_BACKGROUNDS[source.backgroundMode] ? source.backgroundMode : defaults.backgroundMode
+      };
+
+      normalized.targets.forEach((target) => normalizeTargetTypeForShape(target));
+      return normalized;
+    }
+
+    function applyImportedTargetSizes(realWorldTargetSizes) {
+      if (!realWorldTargetSizes || typeof realWorldTargetSizes !== "object") return;
+      Object.entries(realWorldTargetSizes).forEach(([shape, dims]) => {
+        if (!TARGET_DEFS[shape] || !dims || typeof dims !== "object") return;
+        setRealWorldTargetSize(shape, dims.widthIn, dims.heightIn, { persist: false, reRender: false });
+      });
+      try {
+        localStorage.setItem(TARGET_SIZE_STORAGE_KEY, JSON.stringify(getRealWorldTargetSizeSnapshot()));
+      } catch (_) {
+        // Keep imported sizes in memory if storage is unavailable.
+      }
+    }
+
+    function applyAppState(rawState, options = {}) {
+      const { persistSession = true, statusMessage = "" } = options;
+      const nextState = normalizeImportedAppState(rawState);
+      state.calibration = nextState.calibration;
+      state.targets = nextState.targets;
+      state.spacingMode = nextState.spacingMode;
+      state.customSpacingsIn = nextState.customSpacingsIn;
+      state.backgroundMode = nextState.backgroundMode;
+      syncCustomSpacingLength();
+      targetIdCounter = Math.max(1, ...state.targets.map((target) => sanitizeFiniteNumber(target.id, 0) + 1));
+      renderUI();
+      applySelectedStageBackground();
+      recalcAndRender();
+      if (persistSession) {
+        scheduleSessionSave();
+      }
+      if (statusMessage) {
+        setPresetStatus(statusMessage);
+      }
+    }
+
     function setRealWorldTargetSize(shape, widthIn, heightIn, options = {}) {
       const { persist = true, reRender = true } = options;
       const w = toNumber(widthIn);
@@ -723,6 +901,7 @@
       TARGET_DEFS[shape].heightIn = h;
       if (persist) persistRealWorldTargetSizes();
       if (reRender) recalcAndRender();
+      if (persist) scheduleSessionSave();
       return true;
     }
 
@@ -764,6 +943,217 @@
       } catch (_) {
         // Ignore malformed or inaccessible storage.
       }
+    }
+
+    function setPresetStatus(message, isError = false) {
+      el.presetStatus.textContent = message || "";
+      el.presetStatus.classList.toggle("error", Boolean(message) && isError);
+    }
+
+    function readPresetMap() {
+      try {
+        const raw = localStorage.getItem(PRESET_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === "object" ? parsed : {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    function writePresetMap(presetMap) {
+      localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presetMap));
+    }
+
+    function renderPresetList(selectedName = "") {
+      const presets = Object.keys(readPresetMap()).sort((a, b) => a.localeCompare(b));
+      const fragment = document.createDocumentFragment();
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = presets.length ? "Select a preset" : "No saved presets";
+      fragment.appendChild(placeholder);
+
+      presets.forEach((name) => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        if (name === selectedName) option.selected = true;
+        fragment.appendChild(option);
+      });
+
+      el.savedPresets.replaceChildren(fragment);
+      if (selectedName && presets.includes(selectedName)) {
+        el.savedPresets.value = selectedName;
+      } else {
+        el.savedPresets.value = "";
+      }
+    }
+
+    function saveCurrentSessionNow() {
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+        version: "1.1.1",
+        savedAt: new Date().toISOString(),
+        appState: getSerializableAppState(),
+        realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
+      }));
+    }
+
+    function scheduleSessionSave() {
+      clearTimeout(sessionSaveTimer);
+      sessionSaveTimer = window.setTimeout(() => {
+        saveCurrentSessionNow();
+      }, 120);
+    }
+
+    function loadRecentSession() {
+      try {
+        const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        if (parsed.realWorldTargetSizes) {
+          applyImportedTargetSizes(parsed.realWorldTargetSizes);
+        }
+        if (parsed.appState) {
+          applyAppState(parsed.appState, { persistSession: false });
+          setPresetStatus("Restored most recent session.");
+          return true;
+        }
+      } catch (_) {
+        // Ignore malformed session data.
+      }
+      return false;
+    }
+
+    function saveNamedPreset() {
+      const name = String(el.presetName.value || "").trim();
+      if (!name) {
+        setPresetStatus("Enter a preset name before saving.", true);
+        return;
+      }
+      const presetMap = readPresetMap();
+      presetMap[name] = {
+        version: "1.1.1",
+        savedAt: new Date().toISOString(),
+        appState: getSerializableAppState(),
+        realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
+      };
+      writePresetMap(presetMap);
+      renderPresetList(name);
+      el.presetName.value = name;
+      setPresetStatus(`Saved preset "${name}".`);
+      scheduleSessionSave();
+    }
+
+    function getUniquePresetCopyName(baseName, presetMap) {
+      const trimmedBase = String(baseName || "").trim() || "Preset";
+      const firstCopyName = `${trimmedBase} Copy`;
+      if (!presetMap[firstCopyName]) return firstCopyName;
+
+      let suffix = 2;
+      while (presetMap[`${trimmedBase} Copy ${suffix}`]) {
+        suffix += 1;
+      }
+      return `${trimmedBase} Copy ${suffix}`;
+    }
+
+    function savePresetAsCopy() {
+      const presetMap = readPresetMap();
+      const baseName = String(el.presetName.value || el.savedPresets.value || "").trim() || "Preset";
+      const copyName = getUniquePresetCopyName(baseName, presetMap);
+
+      presetMap[copyName] = {
+        version: "1.1.1",
+        savedAt: new Date().toISOString(),
+        appState: getSerializableAppState(),
+        realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
+      };
+      writePresetMap(presetMap);
+      renderPresetList(copyName);
+      el.presetName.value = copyName;
+      setPresetStatus(`Saved preset copy "${copyName}".`);
+      scheduleSessionSave();
+    }
+
+    function loadSelectedPreset() {
+      const name = el.savedPresets.value || String(el.presetName.value || "").trim();
+      if (!name) {
+        setPresetStatus("Select a preset to load.", true);
+        return;
+      }
+      const preset = readPresetMap()[name];
+      if (!preset || !preset.appState) {
+        setPresetStatus(`Preset "${name}" was not found.`, true);
+        renderPresetList();
+        return;
+      }
+      if (preset.realWorldTargetSizes) {
+        applyImportedTargetSizes(preset.realWorldTargetSizes);
+      }
+      el.presetName.value = name;
+      renderPresetList(name);
+      applyAppState(preset.appState, { statusMessage: `Loaded preset "${name}".` });
+    }
+
+    function deleteSelectedPreset() {
+      const name = el.savedPresets.value || String(el.presetName.value || "").trim();
+      if (!name) {
+        setPresetStatus("Select a preset to delete.", true);
+        return;
+      }
+      const presetMap = readPresetMap();
+      if (!presetMap[name]) {
+        setPresetStatus(`Preset "${name}" was not found.`, true);
+        renderPresetList();
+        return;
+      }
+      delete presetMap[name];
+      writePresetMap(presetMap);
+      el.presetName.value = "";
+      renderPresetList();
+      setPresetStatus(`Deleted preset "${name}".`);
+      scheduleSessionSave();
+    }
+
+    function exportCurrentConfig() {
+      const payload = {
+        version: "1.1.1",
+        exportedAt: new Date().toISOString(),
+        appState: getSerializableAppState(),
+        realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      link.href = url;
+      link.download = `dryfire-preset-${stamp}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setPresetStatus("Exported current configuration as JSON.");
+    }
+
+    function importConfigFromFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result || ""));
+          const appState = parsed && parsed.appState ? parsed.appState : parsed;
+          if (parsed.realWorldTargetSizes) {
+            applyImportedTargetSizes(parsed.realWorldTargetSizes);
+          }
+          applyAppState(appState, { statusMessage: `Imported configuration from ${file.name}.` });
+        } catch (_) {
+          setPresetStatus("Import failed. Choose a valid JSON export.", true);
+        }
+      };
+      reader.onerror = () => {
+        setPresetStatus("Import failed. The file could not be read.", true);
+      };
+      reader.readAsText(file);
     }
 
     function computePPI(resW, resH, diagonalIn) {
@@ -820,6 +1210,16 @@
       monitorDiagonalIn: document.getElementById("monitorDiagonalIn"),
       monitorAspectRatio: document.getElementById("monitorAspectRatio"),
       resolutionPreset: document.getElementById("resolutionPreset"),
+      presetName: document.getElementById("presetName"),
+      savedPresets: document.getElementById("savedPresets"),
+      savePresetBtn: document.getElementById("savePresetBtn"),
+      savePresetCopyBtn: document.getElementById("savePresetCopyBtn"),
+      loadPresetBtn: document.getElementById("loadPresetBtn"),
+      deletePresetBtn: document.getElementById("deletePresetBtn"),
+      exportPresetBtn: document.getElementById("exportPresetBtn"),
+      importPresetBtn: document.getElementById("importPresetBtn"),
+      importPresetFile: document.getElementById("importPresetFile"),
+      presetStatus: document.getElementById("presetStatus"),
       addTargetBtn: document.getElementById("addTargetBtn"),
       resetBtn: document.getElementById("resetBtn"),
       updateCalibrationBtn: document.getElementById("updateCalibrationBtn"),
@@ -958,6 +1358,7 @@
       syncCustomSpacingLength();
       renderUI();
       recalcAndRender();
+      scheduleSessionSave();
     }
 
     function removeTarget(index) {
@@ -965,17 +1366,11 @@
       syncCustomSpacingLength();
       renderUI();
       recalcAndRender();
+      scheduleSessionSave();
     }
 
     function resetAll() {
-      state.calibration = {
-        viewDistanceIn: 38,
-        monitorDiagonalIn: 27,
-        aspectRatio: "16:9",
-        resolutionPreset: "2560x1440",
-        resWidthPx: 2560,
-        resHeightPx: 1440
-      };
+      state.calibration = getDefaultCalibration();
       state.targets = [];
       state.spacingMode = "equal";
       state.customSpacingsIn = [];
@@ -984,6 +1379,8 @@
       renderUI();
       applySelectedStageBackground();
       recalcAndRender();
+      scheduleSessionSave();
+      setPresetStatus("Reset to a clean session.");
     }
 
     function syncCustomSpacingLength() {
@@ -1024,6 +1421,7 @@
         collapseBtn.addEventListener("click", () => {
           target.collapsed = !target.collapsed;
           renderUI();
+          scheduleSessionSave();
         });
 
         const removeBtn = document.createElement("button");
@@ -1052,6 +1450,7 @@
           normalizeTargetTypeForShape(target);
           renderUI();
           recalcAndRender();
+          scheduleSessionSave();
         });
         shapeLabel.appendChild(shapeSelect);
 
@@ -1068,6 +1467,7 @@
         typeSelect.addEventListener("change", (e) => {
           target.type = e.target.value;
           recalcAndRender();
+          scheduleSessionSave();
         });
         typeLabel.appendChild(typeSelect);
 
@@ -1088,6 +1488,7 @@
             target.distanceValue = toNumber(distInput.value);
             isManualDistanceEdit = false;
             recalcAndRender();
+            scheduleSessionSave();
             return;
           }
           if (e.key === "Escape") {
@@ -1106,6 +1507,7 @@
           if (isManualDistanceEdit) return;
           target.distanceValue = toNumber(e.target.value);
           recalcAndRender();
+          scheduleSessionSave();
         });
         distInput.addEventListener("blur", () => {
           if (isManualDistanceEdit) {
@@ -1127,6 +1529,7 @@
         unitSelect.addEventListener("change", (e) => {
           target.distanceUnit = e.target.value;
           recalcAndRender();
+          scheduleSessionSave();
         });
         unitLabel.appendChild(unitSelect);
 
@@ -1169,6 +1572,7 @@
         input.addEventListener("input", (e) => {
           state.customSpacingsIn[i] = toNumber(e.target.value);
           recalcAndRender();
+          scheduleSessionSave();
         });
         label.appendChild(input);
         fragment.appendChild(label);
@@ -1252,6 +1656,7 @@
       el.monitorAspectRatio.value = state.calibration.aspectRatio;
       renderResolutionPresetOptions(state.calibration.aspectRatio, state.calibration.resolutionPreset);
       el.backgroundMode.value = state.backgroundMode;
+      renderPresetList(el.savedPresets.value || String(el.presetName.value || "").trim());
 
       renderTargetCards();
       renderSpacingControls();
@@ -1270,6 +1675,8 @@
         resHeightPx: parsed.height
       };
       recalcAndRender();
+      scheduleSessionSave();
+      setPresetStatus("Calibration updated.");
     }
 
     // =====================
@@ -1473,6 +1880,27 @@
     el.backgroundMode.addEventListener("change", (e) => {
       state.backgroundMode = e.target.value;
       applySelectedStageBackground();
+      scheduleSessionSave();
+    });
+
+    el.savedPresets.addEventListener("change", (e) => {
+      const selectedName = e.target.value;
+      if (selectedName) {
+        el.presetName.value = selectedName;
+      }
+      setPresetStatus("");
+    });
+
+    el.savePresetBtn.addEventListener("click", saveNamedPreset);
+    el.savePresetCopyBtn.addEventListener("click", savePresetAsCopy);
+    el.loadPresetBtn.addEventListener("click", loadSelectedPreset);
+    el.deletePresetBtn.addEventListener("click", deleteSelectedPreset);
+    el.exportPresetBtn.addEventListener("click", exportCurrentConfig);
+    el.importPresetBtn.addEventListener("click", () => el.importPresetFile.click());
+    el.importPresetFile.addEventListener("change", (e) => {
+      const [file] = e.target.files || [];
+      importConfigFromFile(file);
+      e.target.value = "";
     });
 
     el.updateCalibrationBtn.addEventListener("click", applyCalibrationFromInputs);
@@ -1483,6 +1911,7 @@
       state.spacingMode = e.target.value;
       renderSpacingControls();
       recalcAndRender();
+      scheduleSessionSave();
     });
 
     window.addEventListener("resize", recalcAndRender);
@@ -1493,9 +1922,13 @@
     window.saveRealWorldTargetSize = saveRealWorldTargetSize;
     window.saveSteelPlateDiameterInches = saveSteelPlateDiameterInches;
     loadPersistedRealWorldTargetSizes();
-    renderUI();
-    applySelectedStageBackground();
-    recalcAndRender();
+    renderPresetList();
+    if (!loadRecentSession()) {
+      renderUI();
+      applySelectedStageBackground();
+      recalcAndRender();
+      saveCurrentSessionNow();
+    }
   </script>
 </body>
 </html>
