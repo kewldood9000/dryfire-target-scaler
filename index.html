@@ -592,7 +592,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.44</p>
+      <p class="version">Ver. 1.1.51</p>
 
       <section class="section stack-section" aria-labelledby="new-target-title">
         <h2 id="new-target-title">New Target</h2>
@@ -633,6 +633,7 @@
         <div id="spacingHead" class="section-head collapsible">
           <div class="section-head-copy">
             <h2 id="spacing-title">Target Spacing</h2>
+            <div id="spacingSubtitle" class="hint">Distances are in inches.</div>
             <div id="spacingStatus" class="status-note error" aria-live="polite"></div>
           </div>
           <button id="spacingToggleBtn" class="btn win" type="button" aria-label="Expand target spacing">□</button>
@@ -1631,7 +1632,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.44",
+        version: "1.1.51",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1672,7 +1673,7 @@
       }
       const presetMap = readPresetMap();
       presetMap[name] = {
-        version: "1.1.44",
+        version: "1.1.51",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1702,7 +1703,7 @@
       const copyName = getUniquePresetCopyName(baseName, presetMap);
 
       presetMap[copyName] = {
-        version: "1.1.44",
+        version: "1.1.51",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1756,7 +1757,7 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.44",
+        version: "1.1.51",
         exportedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1868,6 +1869,15 @@
       return new Map(projectedTargets.map((entry) => [entry.targetId, entry]));
     }
 
+    function sortProjectedTargetsByScreenX(projectedTargets) {
+      return projectedTargets
+        .slice()
+        .sort((a, b) => {
+          if (a.xPx !== b.xPx) return a.xPx - b.xPx;
+          return sanitizeFiniteNumber(a.targetId, 0) - sanitizeFiniteNumber(b.targetId, 0);
+        });
+    }
+
     function computeCurrentProjectedTargets() {
       const stageDimensions = getStageDimensions();
       if (!(stageDimensions.width > 0) || !(stageDimensions.height > 0)) return null;
@@ -1922,12 +1932,14 @@
       if (!leftTarget || !rightTarget) return false;
 
       const projectedById = buildProjectedTargetMaps(projected.projectedTargets);
-      const leftProjected = projectedById.get(leftTarget.id);
-      const rightProjected = projectedById.get(rightTarget.id);
-      if (!leftProjected || !rightProjected) {
+      const firstProjected = projectedById.get(leftTarget.id);
+      const secondProjected = projectedById.get(rightTarget.id);
+      if (!firstProjected || !secondProjected) {
         setSpacingStatus("Unable to resolve the selected target pair.");
         return false;
       }
+      const pairProjected = sortProjectedTargetsByScreenX([firstProjected, secondProjected]);
+      const [leftProjected, rightProjected] = pairProjected;
 
       const viewDistanceIn = sanitizeFiniteNumber(state.calibration.viewDistanceIn, NaN);
       if (!(viewDistanceIn > 0)) {
@@ -1942,18 +1954,16 @@
       const deltaScreenXIn = desiredRightScreenXIn - currentRightScreenXIn;
 
       const proposedTargets = state.targets.map((target) => ({ ...target }));
-      const proposedSpatialTargets = proposedTargets
-        .slice()
-        .sort((a, b) => sanitizeFiniteNumber(a.positionOrder, 0) - sanitizeFiniteNumber(b.positionOrder, 0));
-
-      for (let i = index + 1; i < proposedSpatialTargets.length; i += 1) {
-        const movedTarget = proposedSpatialTargets[i];
-        const currentEntry = projectedById.get(movedTarget.id);
-        if (!currentEntry) continue;
-        const currentScreenXIn = getProjectedScreenXIn(currentEntry, stageDimensions.width, projected.ppi);
+      const proposedTargetById = new Map(proposedTargets.map((target) => [target.id, target]));
+      const screenOrderedProjected = sortProjectedTargetsByScreenX(projected.projectedTargets);
+      const rightProjectedIndex = screenOrderedProjected.findIndex((entry) => entry.targetId === rightProjected.targetId);
+      screenOrderedProjected.slice(rightProjectedIndex).forEach((entry) => {
+        const movedTarget = proposedTargetById.get(entry.targetId);
+        if (!movedTarget) return;
+        const currentScreenXIn = getProjectedScreenXIn(entry, stageDimensions.width, projected.ppi);
         movedTarget.manualScreenXIn = currentScreenXIn + deltaScreenXIn;
         movedTarget.manualScreenOffsetIn = 0;
-      }
+      });
 
       const proposedProjection = computeProjectedTargetsForState(proposedTargets, {
         stageWidthPx: stageDimensions.width,
@@ -2008,6 +2018,7 @@
       targetList: document.getElementById("targetList"),
       spacingSection: document.getElementById("spacingSection"),
       spacingHead: document.getElementById("spacingHead"),
+      spacingSubtitle: document.getElementById("spacingSubtitle"),
       spacingBody: document.getElementById("spacingBody"),
       spacingToggleBtn: document.getElementById("spacingToggleBtn"),
       spacingStatus: document.getElementById("spacingStatus"),
@@ -2284,6 +2295,8 @@
 
         const head = document.createElement("div");
         head.className = "target-head";
+        head.title = target.collapsed ? "Click to open target card" : "";
+        head.setAttribute("aria-label", target.collapsed ? "Click to open target card" : getTargetDisplayLabel(target, displayLabelById));
         head.addEventListener("click", () => {
           if (!target.collapsed) return;
           target.collapsed = false;
@@ -2294,6 +2307,7 @@
         const title = document.createElement("div");
         title.className = "target-title";
         title.textContent = getTargetDisplayLabel(target, displayLabelById);
+        title.title = target.collapsed ? "Click to open target card" : "";
 
         const actions = document.createElement("div");
         actions.className = "target-head-actions";
@@ -2478,11 +2492,15 @@
       if (!show) {
         state.spacingCollapsed = true;
         setSpacingStatus("");
+        el.spacingSubtitle.classList.add("hidden");
         el.spacingInputs.replaceChildren();
         return;
       }
 
       el.spacingBody.classList.toggle("hidden", Boolean(state.spacingCollapsed));
+      el.spacingSubtitle.classList.toggle("hidden", Boolean(state.spacingCollapsed));
+      el.spacingHead.title = state.spacingCollapsed ? "Click to open target spacing" : "";
+      el.spacingHead.setAttribute("aria-label", state.spacingCollapsed ? "Click to open target spacing" : "Target spacing");
       el.spacingToggleBtn.textContent = state.spacingCollapsed ? "□" : "−";
       el.spacingToggleBtn.title = state.spacingCollapsed ? "Expand target spacing" : "Minimize target spacing";
       el.spacingToggleBtn.setAttribute("aria-label", el.spacingToggleBtn.title);
@@ -2495,13 +2513,18 @@
 
       for (let i = 0; i < spatialTargets.length - 1; i += 1) {
         const label = document.createElement("label");
-        label.textContent = `Gap between ${getTargetDisplayLabel(spatialTargets[i], displayLabelById)} and ${getTargetDisplayLabel(spatialTargets[i + 1], displayLabelById)} (in)`;
+        label.textContent = `${getTargetDisplayLabel(spatialTargets[i], displayLabelById)} <-> ${getTargetDisplayLabel(spatialTargets[i + 1], displayLabelById)}`;
         const input = document.createElement("input");
         input.type = "number";
         input.min = "0";
         input.step = "0.1";
-        const leftProjected = projectedById.get(spatialTargets[i].id);
-        const rightProjected = projectedById.get(spatialTargets[i + 1].id);
+        const firstProjected = projectedById.get(spatialTargets[i].id);
+        const secondProjected = projectedById.get(spatialTargets[i + 1].id);
+        const pairProjected = (firstProjected && secondProjected)
+          ? sortProjectedTargetsByScreenX([firstProjected, secondProjected])
+          : [];
+        const leftProjected = pairProjected[0];
+        const rightProjected = pairProjected[1];
         const currentGapIn = (projected && leftProjected && rightProjected && viewDistanceIn > 0)
           ? computeActualAdjacentGapIn(leftProjected, rightProjected, stageDimensions.width, projected.ppi, viewDistanceIn)
           : (state.customSpacingsIn[i] ?? 36);
