@@ -529,7 +529,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.13</p>
+      <p class="version">Ver. 1.1.16</p>
 
       <section class="section" aria-labelledby="targets-title">
         <h2 id="targets-title">Targets</h2>
@@ -693,6 +693,7 @@
       uspsa: [
         { value: "open", label: "Open", assetKey: "Open" },
         { value: "focusTape", label: "Focus Tape", assetKey: "Focus_Tape" },
+        { value: "noShoot", label: "No Shoot", assetKey: "No_Shoot" },
         { value: "zebra", label: "Zebra", assetKey: "Zebra" },
         { value: "halfZebraLeft", label: "Half-Zebra (Left)", assetKey: "Half-Zebra_Left" },
         { value: "halfZebraRight", label: "Half-Zebra (Right)", assetKey: "Half-Zebra_Right" },
@@ -703,6 +704,7 @@
       ipsc: [
         { value: "open", label: "Open", assetKey: "Open" },
         { value: "focusTape", label: "Focus Tape", assetKey: "Focus_Tape" },
+        { value: "noShoot", label: "No Shoot", assetKey: "No_Shoot" },
         { value: "zebra", label: "Zebra", assetKey: "Zebra" },
         { value: "peekerLeft", label: "Peeker Left", assetKey: "Peeker_Left" },
         { value: "peekerRight", label: "Peeker Right", assetKey: "Peeker_Right" },
@@ -803,6 +805,7 @@
     // =====================
     const inchesPerYard = 36;
     const inchesPerMeter = 39.37007874015748;
+    const MAX_TARGET_OBSCURE_RATIO = 0.66;
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
@@ -869,6 +872,48 @@
       const spatialTargets = getTargetsInSpatialOrder();
       const displayIndex = spatialTargets.findIndex((entry) => entry.id === target.id);
       return `T${displayIndex + 1}`;
+    }
+
+    function getMinimumTargetCenterSeparationPx(widthA, widthB) {
+      return Math.max(0, ((widthA + widthB) / 2) - (MAX_TARGET_OBSCURE_RATIO * Math.min(widthA, widthB)));
+    }
+
+    function constrainDraggedTargetXPx(candidateXPx, draggedTargetId, draggedWidthPx, directionHint = 0) {
+      if (!lastRenderMetrics) return candidateXPx;
+
+      let nextXPx = clamp(
+        candidateXPx,
+        draggedWidthPx / 2,
+        lastRenderMetrics.stageW - draggedWidthPx / 2
+      );
+
+      const targetEntries = Array.isArray(lastRenderMetrics.targetEntries) ? lastRenderMetrics.targetEntries : [];
+      for (let pass = 0; pass < targetEntries.length * 2; pass += 1) {
+        let adjusted = false;
+
+        for (const entry of targetEntries) {
+          if (!entry || entry.targetId === draggedTargetId) continue;
+
+          const minSeparationPx = getMinimumTargetCenterSeparationPx(draggedWidthPx, entry.wPx);
+          if (Math.abs(nextXPx - entry.xPx) >= minSeparationPx) continue;
+
+          const direction = nextXPx === entry.xPx
+            ? (directionHint >= 0 ? 1 : -1)
+            : Math.sign(nextXPx - entry.xPx);
+
+          nextXPx = entry.xPx + (direction * minSeparationPx);
+          nextXPx = clamp(
+            nextXPx,
+            draggedWidthPx / 2,
+            lastRenderMetrics.stageW - draggedWidthPx / 2
+          );
+          adjusted = true;
+        }
+
+        if (!adjusted) break;
+      }
+
+      return nextXPx;
     }
 
     function getTargetFamily(shape) {
@@ -1138,7 +1183,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.13",
+        version: "1.1.16",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1179,7 +1224,7 @@
       }
       const presetMap = readPresetMap();
       presetMap[name] = {
-        version: "1.1.13",
+        version: "1.1.16",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1209,7 +1254,7 @@
       const copyName = getUniquePresetCopyName(baseName, presetMap);
 
       presetMap[copyName] = {
-        version: "1.1.13",
+        version: "1.1.16",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1263,7 +1308,7 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.13",
+        version: "1.1.16",
         exportedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1914,15 +1959,19 @@
         targetWidthPx,
         startClientX,
         startManualScreenOffsetIn,
-        ppi,
-        stageWidthPx
+        ppi
       } = activeTargetDrag;
 
       const startXPx = baseXPx + startManualScreenOffsetIn * ppi;
       const deltaPx = pointerEvent.clientX - startClientX;
       const unclampedXPx = startXPx + deltaPx;
-      const halfWidthPx = targetWidthPx / 2;
-      const clampedXPx = clamp(unclampedXPx, halfWidthPx, stageWidthPx - halfWidthPx);
+      const draggedTarget = state.targets[targetIndex];
+      const clampedXPx = constrainDraggedTargetXPx(
+        unclampedXPx,
+        draggedTarget ? draggedTarget.id : null,
+        targetWidthPx,
+        deltaPx
+      );
       const nextManualOffsetIn = (clampedXPx - baseXPx) / ppi;
 
       state.targets[targetIndex].manualScreenOffsetIn = nextManualOffsetIn;
@@ -2080,6 +2129,17 @@
         tp.xPx = tp.baseXPx + manualScreenOffsetIn * ppi;
         tp.xInOnScreen = (tp.xPx - stageW / 2) / ppi;
       });
+
+      lastRenderMetrics = {
+        stageW,
+        stageH,
+        ppi,
+        targetEntries: targetProjected.map((tp) => ({
+          targetId: tp.targetId,
+          xPx: tp.xPx,
+          wPx: tp.wPx
+        }))
+      };
 
       const projectedById = new Map(targetProjected.map((tp) => [tp.targetId, tp]));
 
