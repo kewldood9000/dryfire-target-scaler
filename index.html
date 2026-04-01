@@ -201,6 +201,12 @@
       border-color: #7f4b62;
     }
 
+    .btn.win:disabled {
+      opacity: 0.45;
+      cursor: default;
+      filter: none;
+    }
+
     .target-body {
       display: grid;
       gap: 8px;
@@ -439,7 +445,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.1</p>
+      <p class="version">Ver. 1.1.2</p>
 
       <section class="section" aria-labelledby="calibration-title">
         <h2 id="calibration-title">Calibration</h2>
@@ -509,6 +515,7 @@
           <button id="addTargetBtn" class="btn primary" type="button">Add Target</button>
           <button id="resetBtn" class="btn warn" type="button">Reset</button>
         </div>
+        <p class="hint">Targets lower in the list render on top of targets above them.</p>
         <div id="targetList" aria-live="polite"></div>
       </section>
 
@@ -1369,6 +1376,19 @@
       scheduleSessionSave();
     }
 
+    function moveTarget(fromIndex, toIndex) {
+      if (fromIndex === toIndex) return;
+      if (fromIndex < 0 || fromIndex >= state.targets.length) return;
+      if (toIndex < 0 || toIndex >= state.targets.length) return;
+
+      const [moved] = state.targets.splice(fromIndex, 1);
+      state.targets.splice(toIndex, 0, moved);
+      syncCustomSpacingLength();
+      renderUI();
+      recalcAndRender();
+      scheduleSessionSave();
+    }
+
     function resetAll() {
       state.calibration = getDefaultCalibration();
       state.targets = [];
@@ -1412,6 +1432,24 @@
         const actions = document.createElement("div");
         actions.className = "target-head-actions";
 
+        const upBtn = document.createElement("button");
+        upBtn.type = "button";
+        upBtn.className = "btn win";
+        upBtn.textContent = "↑";
+        upBtn.title = "Move target up";
+        upBtn.setAttribute("aria-label", "Move target up");
+        upBtn.disabled = index === 0;
+        upBtn.addEventListener("click", () => moveTarget(index, index - 1));
+
+        const downBtn = document.createElement("button");
+        downBtn.type = "button";
+        downBtn.className = "btn win";
+        downBtn.textContent = "↓";
+        downBtn.title = "Move target down";
+        downBtn.setAttribute("aria-label", "Move target down");
+        downBtn.disabled = index === state.targets.length - 1;
+        downBtn.addEventListener("click", () => moveTarget(index, index + 1));
+
         const collapseBtn = document.createElement("button");
         collapseBtn.type = "button";
         collapseBtn.className = "btn win";
@@ -1432,7 +1470,7 @@
         removeBtn.setAttribute("aria-label", "Remove target");
         removeBtn.addEventListener("click", () => removeTarget(index));
 
-        actions.append(collapseBtn, removeBtn);
+        actions.append(upBtn, downBtn, collapseBtn, removeBtn);
         head.append(title, actions);
 
         const shapeLabel = document.createElement("label");
