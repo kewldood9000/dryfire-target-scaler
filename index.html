@@ -529,18 +529,35 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.17</p>
+      <p class="version">Ver. 1.1.19</p>
 
-      <section class="section" aria-labelledby="targets-title">
-        <h2 id="targets-title">Targets</h2>
-        <div class="row">
+      <section class="section" aria-labelledby="new-target-title">
+        <h2 id="new-target-title">New Target</h2>
+        <label>
+          New Target Shape
+          <select id="newTargetShape"></select>
+        </label>
+        <label>
+          New Target Type
+          <select id="newTargetType"></select>
+        </label>
+        <label>
+          New Target Distance
+          <input id="newTargetDistanceValue" type="number" min="0.1" step="0.1" value="7" />
+        </label>
+        <label>
+          New Target Unit
+          <select id="newTargetDistanceUnit"></select>
+        </label>
+        <div class="row" style="margin-top:10px;">
           <button id="addTargetBtn" class="btn primary" type="button">Add Target</button>
           <button id="resetBtn" class="btn warn" type="button">Reset</button>
         </div>
-        <label style="margin-top:10px;">
-          New Target Distance (yd)
-          <input id="newTargetDistanceValue" type="number" min="0.1" step="0.1" value="7" />
-        </label>
+        <div id="addTargetStatus" class="status-note error" aria-live="polite"></div>
+      </section>
+
+      <section class="section" aria-labelledby="targets-title">
+        <h2 id="targets-title">Target Settings</h2>
         <div id="targetList" aria-live="polite"></div>
       </section>
 
@@ -793,7 +810,10 @@
         resHeightPx: 1440
       },
       targets: [],
+      newTargetShape: "USPSA",
+      newTargetType: "open",
       newTargetDistanceValue: 7,
+      newTargetDistanceUnit: "yd",
       spacingMode: "equal",
       customSpacingsIn: [],
       backgroundMode: "blank"
@@ -840,7 +860,10 @@
       return {
         calibration: getDefaultCalibration(),
         targets: [],
+        newTargetShape: "USPSA",
+        newTargetType: "open",
         newTargetDistanceValue: 7,
+        newTargetDistanceUnit: "yd",
         spacingMode: "equal",
         customSpacingsIn: [],
         backgroundMode: "blank"
@@ -879,8 +902,110 @@
       return `T${displayIndex + 1}`;
     }
 
+    function setAddTargetStatus(message = "") {
+      el.addTargetStatus.textContent = message;
+    }
+
     function getMinimumTargetCenterSeparationPx(widthA, widthB) {
       return Math.max(0, ((widthA + widthB) / 2) - (MAX_TARGET_OBSCURE_RATIO * Math.min(widthA, widthB)));
+    }
+
+    function computeProjectedTargetsForState(targets, options = {}) {
+      const {
+        customSpacingsIn = state.customSpacingsIn,
+        spacingMode = state.spacingMode,
+        calibration = state.calibration,
+        stageWidthPx,
+        stageHeightPx
+      } = options;
+
+      const viewDistanceIn = toNumber(calibration.viewDistanceIn);
+      const monitorDiagonalIn = toNumber(calibration.monitorDiagonalIn);
+      const resWidthPx = toNumber(calibration.resWidthPx);
+      const resHeightPx = toNumber(calibration.resHeightPx);
+      if (!(viewDistanceIn > 0) || !(monitorDiagonalIn > 0) || !(resWidthPx > 0) || !(resHeightPx > 0) || !(stageWidthPx > 0) || !(stageHeightPx > 0)) {
+        return null;
+      }
+
+      const ppi = computePPI(resWidthPx, resHeightPx, monitorDiagonalIn);
+      if (!(ppi > 0)) return null;
+
+      const spatialTargets = targets
+        .slice()
+        .sort((a, b) => {
+          const aOrder = sanitizeFiniteNumber(a.positionOrder, Number.MAX_SAFE_INTEGER);
+          const bOrder = sanitizeFiniteNumber(b.positionOrder, Number.MAX_SAFE_INTEGER);
+          if (aOrder !== bOrder) return aOrder - bOrder;
+          return sanitizeFiniteNumber(a.id, 0) - sanitizeFiniteNumber(b.id, 0);
+        });
+
+      const distancesIn = spatialTargets.map((target) => {
+        const distanceIn = distanceToInches(target.distanceValue, target.distanceUnit || "yd");
+        return distanceIn > 0 ? distanceIn : NaN;
+      });
+      if (distancesIn.some((distanceIn) => !(distanceIn > 0))) return null;
+
+      const projectedTargets = spatialTargets.map((target, index) => {
+        const def = TARGET_DEFS[target.shape] || TARGET_DEFS.USPSA;
+        const distIn = distancesIn[index];
+        const aspectRatio = def.widthIn / def.heightIn;
+        const hInOnScreen = projectedSizeInches(def.heightIn, distIn, viewDistanceIn);
+        const wInOnScreen = hInOnScreen * aspectRatio;
+
+        return {
+          targetId: target.id,
+          hPx: hInOnScreen * ppi,
+          wPx: wInOnScreen * ppi,
+          baseXPx: stageWidthPx / 2,
+          xPx: stageWidthPx / 2
+        };
+      });
+
+      if (spacingMode === "equal") {
+        const equalLayout = computeEqualScreenXPositions(
+          projectedTargets.map((entry) => entry.wPx),
+          stageWidthPx
+        );
+        projectedTargets.forEach((entry, index) => {
+          entry.baseXPx = equalLayout.xPositions[index];
+          entry.xPx = equalLayout.xPositions[index];
+        });
+      } else {
+        const centeredRealX = computeCenteredRealWorldXFromAdjacent(
+          customSpacingsIn.map((gap) => toNumber(gap)),
+          projectedTargets.length
+        );
+
+        projectedTargets.forEach((entry, index) => {
+          const angle = Math.atan(centeredRealX[index] / distancesIn[index]);
+          const xIn = viewDistanceIn * Math.tan(angle);
+          const xPx = stageWidthPx / 2 + xIn * ppi;
+          entry.baseXPx = xPx;
+          entry.xPx = xPx;
+        });
+      }
+
+      projectedTargets.forEach((entry) => {
+        const target = targets.find((candidate) => candidate.id === entry.targetId);
+        const manualScreenOffsetIn = sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0);
+        entry.xPx = entry.baseXPx + manualScreenOffsetIn * ppi;
+      });
+
+      const overflows = projectedTargets.some((entry) => {
+        const halfW = entry.wPx / 2;
+        const halfH = entry.hPx / 2;
+        const left = entry.xPx - halfW;
+        const right = entry.xPx + halfW;
+        const top = stageHeightPx / 2 - halfH;
+        const bottom = stageHeightPx / 2 + halfH;
+        return left < 0 || right > stageWidthPx || top < 0 || bottom > stageHeightPx;
+      });
+
+      return {
+        ppi,
+        projectedTargets,
+        overflows
+      };
     }
 
     function constrainDraggedTargetXPx(candidateXPx, draggedTargetId, draggedWidthPx, directionHint = 0) {
@@ -936,6 +1061,18 @@
     function normalizeTargetTypeForShape(target) {
       if (!isTargetTypeValidForShape(target.shape, target.type)) {
         target.type = "open";
+      }
+    }
+
+    function normalizeNewTargetDefaults() {
+      if (!TARGET_DEFS[state.newTargetShape]) {
+        state.newTargetShape = "USPSA";
+      }
+      if (!isTargetTypeValidForShape(state.newTargetShape, state.newTargetType)) {
+        state.newTargetType = "open";
+      }
+      if (state.newTargetDistanceUnit !== "m") {
+        state.newTargetDistanceUnit = "yd";
       }
     }
 
@@ -1002,7 +1139,10 @@
           positionOrder: sanitizeFiniteNumber(target.positionOrder, 0),
           collapsed: Boolean(target.collapsed)
         })),
+        newTargetShape: TARGET_DEFS[state.newTargetShape] ? state.newTargetShape : "USPSA",
+        newTargetType: String(state.newTargetType || "open"),
         newTargetDistanceValue: sanitizeFiniteNumber(state.newTargetDistanceValue, 7),
+        newTargetDistanceUnit: state.newTargetDistanceUnit === "m" ? "m" : "yd",
         spacingMode: state.spacingMode === "custom" ? "custom" : "equal",
         customSpacingsIn: state.customSpacingsIn.map((gap) => sanitizeFiniteNumber(gap, 36)),
         backgroundMode: STAGE_BACKGROUNDS[state.backgroundMode] ? state.backgroundMode : "blank"
@@ -1036,7 +1176,10 @@
           positionOrder: sanitizeFiniteNumber(target && target.positionOrder, index),
           collapsed: Boolean(target && target.collapsed)
         })) : [],
+        newTargetShape: source.newTargetShape && TARGET_DEFS[source.newTargetShape] ? source.newTargetShape : defaults.newTargetShape,
+        newTargetType: String(source.newTargetType || defaults.newTargetType),
         newTargetDistanceValue: sanitizeFiniteNumber(source.newTargetDistanceValue, defaults.newTargetDistanceValue),
+        newTargetDistanceUnit: source.newTargetDistanceUnit === "m" ? "m" : defaults.newTargetDistanceUnit,
         spacingMode: source.spacingMode === "custom" ? "custom" : "equal",
         customSpacingsIn: Array.isArray(source.customSpacingsIn)
           ? source.customSpacingsIn.map((gap) => sanitizeFiniteNumber(gap, 36))
@@ -1072,7 +1215,10 @@
       const nextState = normalizeImportedAppState(rawState);
       state.calibration = nextState.calibration;
       state.targets = nextState.targets;
+      state.newTargetShape = nextState.newTargetShape;
+      state.newTargetType = nextState.newTargetType;
       state.newTargetDistanceValue = nextState.newTargetDistanceValue;
+      state.newTargetDistanceUnit = nextState.newTargetDistanceUnit;
       state.spacingMode = nextState.spacingMode;
       state.customSpacingsIn = nextState.customSpacingsIn;
       state.backgroundMode = nextState.backgroundMode;
@@ -1191,7 +1337,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.17",
+        version: "1.1.19",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1232,7 +1378,7 @@
       }
       const presetMap = readPresetMap();
       presetMap[name] = {
-        version: "1.1.17",
+        version: "1.1.19",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1262,7 +1408,7 @@
       const copyName = getUniquePresetCopyName(baseName, presetMap);
 
       presetMap[copyName] = {
-        version: "1.1.17",
+        version: "1.1.19",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1316,7 +1462,7 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.17",
+        version: "1.1.19",
         exportedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1429,7 +1575,11 @@
       presetStatus: document.getElementById("presetStatus"),
       addTargetBtn: document.getElementById("addTargetBtn"),
       resetBtn: document.getElementById("resetBtn"),
+      addTargetStatus: document.getElementById("addTargetStatus"),
+      newTargetShape: document.getElementById("newTargetShape"),
+      newTargetType: document.getElementById("newTargetType"),
       newTargetDistanceValue: document.getElementById("newTargetDistanceValue"),
+      newTargetDistanceUnit: document.getElementById("newTargetDistanceUnit"),
       updateCalibrationBtn: document.getElementById("updateCalibrationBtn"),
       targetList: document.getElementById("targetList"),
       spacingSection: document.getElementById("spacingSection"),
@@ -1565,17 +1715,40 @@
     // UI Builders
     // =====================
     function addTarget(defaults = {}) {
-      state.targets.push({
-        id: targetIdCounter++,
-        shape: defaults.shape || "USPSA",
-        type: defaults.type || "open",
+      normalizeNewTargetDefaults();
+      const nextTarget = {
+        id: targetIdCounter,
+        shape: defaults.shape || state.newTargetShape || "USPSA",
+        type: defaults.type || state.newTargetType || "open",
         distanceValue: defaults.distanceValue ?? defaults.distanceYd ?? state.newTargetDistanceValue ?? 7,
-        distanceUnit: defaults.distanceUnit || "yd",
+        distanceUnit: defaults.distanceUnit || state.newTargetDistanceUnit || "yd",
         manualScreenOffsetIn: sanitizeFiniteNumber(defaults.manualScreenOffsetIn, 0),
         positionOrder: sanitizeFiniteNumber(defaults.positionOrder, state.targets.length),
         collapsed: Boolean(defaults.collapsed)
+      };
+      normalizeTargetTypeForShape(nextTarget);
+
+      const simulatedTargets = state.targets.concat(nextTarget);
+      const simulatedSpacings = state.customSpacingsIn.slice();
+      while (simulatedSpacings.length < Math.max(0, simulatedTargets.length - 1)) {
+        simulatedSpacings.push(36);
+      }
+
+      const stageRect = el.stage.getBoundingClientRect();
+      const projected = computeProjectedTargetsForState(simulatedTargets, {
+        customSpacingsIn: simulatedSpacings,
+        stageWidthPx: stageRect.width,
+        stageHeightPx: stageRect.height
       });
-      normalizeTargetTypeForShape(state.targets[state.targets.length - 1]);
+
+      if (projected && projected.overflows) {
+        setAddTargetStatus("Projected Target Display Overload");
+        return;
+      }
+
+      setAddTargetStatus("");
+      state.targets.push(nextTarget);
+      targetIdCounter += 1;
       normalizeTargetPositionOrders();
       syncCustomSpacingLength();
       renderUI();
@@ -1585,6 +1758,7 @@
 
     function removeTarget(index) {
       state.targets.splice(index, 1);
+      setAddTargetStatus("");
       normalizeTargetPositionOrders();
       syncCustomSpacingLength();
       renderUI();
@@ -1607,10 +1781,15 @@
     function resetAll() {
       state.calibration = getDefaultCalibration();
       state.targets = [];
+      state.newTargetShape = "USPSA";
+      state.newTargetType = "open";
+      state.newTargetDistanceValue = 7;
+      state.newTargetDistanceUnit = "yd";
       state.spacingMode = "equal";
       state.customSpacingsIn = [];
       state.backgroundMode = "blank";
       targetIdCounter = 1;
+      setAddTargetStatus("");
       renderUI();
       applySelectedStageBackground();
       recalcAndRender();
@@ -1701,6 +1880,7 @@
         shapeSelect.addEventListener("change", (e) => {
           target.shape = e.target.value;
           normalizeTargetTypeForShape(target);
+          setAddTargetStatus("");
           renderUI();
           recalcAndRender();
           scheduleSessionSave();
@@ -1719,6 +1899,7 @@
         });
         typeSelect.addEventListener("change", (e) => {
           target.type = e.target.value;
+          setAddTargetStatus("");
           recalcAndRender();
           scheduleSessionSave();
         });
@@ -1740,6 +1921,7 @@
           if (e.key === "Enter") {
             target.distanceValue = toNumber(distInput.value);
             isManualDistanceEdit = false;
+            setAddTargetStatus("");
             recalcAndRender();
             scheduleSessionSave();
             return;
@@ -1759,6 +1941,7 @@
         distInput.addEventListener("input", (e) => {
           if (isManualDistanceEdit) return;
           target.distanceValue = toNumber(e.target.value);
+          setAddTargetStatus("");
           recalcAndRender();
           scheduleSessionSave();
         });
@@ -1781,6 +1964,7 @@
         });
         unitSelect.addEventListener("change", (e) => {
           target.distanceUnit = e.target.value;
+          setAddTargetStatus("");
           recalcAndRender();
           scheduleSessionSave();
         });
@@ -1826,6 +2010,7 @@
         input.value = state.customSpacingsIn[i] ?? 36;
         input.addEventListener("input", (e) => {
           state.customSpacingsIn[i] = toNumber(e.target.value);
+          setAddTargetStatus("");
           recalcAndRender();
           scheduleSessionSave();
         });
@@ -1858,6 +2043,22 @@
 
       if (!options.some((p) => p.value === preferredValue) && options.length > 0) {
         el.resolutionPreset.value = options[0].value;
+      }
+    }
+
+    function renderNewTargetTypeOptions(shape, preferredValue) {
+      const options = getTargetTypeOptionsForShape(shape);
+      const fragment = document.createDocumentFragment();
+      options.forEach((optionDef) => {
+        const option = document.createElement("option");
+        option.value = optionDef.value;
+        option.textContent = optionDef.label;
+        if (optionDef.value === preferredValue) option.selected = true;
+        fragment.appendChild(option);
+      });
+      el.newTargetType.replaceChildren(fragment);
+      if (!options.some((optionDef) => optionDef.value === preferredValue) && options.length > 0) {
+        el.newTargetType.value = options[0].value;
       }
     }
 
@@ -1906,12 +2107,30 @@
     }
 
     function renderUI() {
+      normalizeNewTargetDefaults();
       el.viewDistanceIn.value = state.calibration.viewDistanceIn;
       el.monitorDiagonalIn.value = state.calibration.monitorDiagonalIn;
       el.monitorAspectRatio.value = state.calibration.aspectRatio;
       renderResolutionPresetOptions(state.calibration.aspectRatio, state.calibration.resolutionPreset);
       el.backgroundMode.value = state.backgroundMode;
+      el.newTargetShape.replaceChildren();
+      TARGET_SHAPE_OPTIONS.forEach((shape) => {
+        const option = document.createElement("option");
+        option.value = shape;
+        option.textContent = shape;
+        if (shape === state.newTargetShape) option.selected = true;
+        el.newTargetShape.appendChild(option);
+      });
+      renderNewTargetTypeOptions(state.newTargetShape, state.newTargetType);
       el.newTargetDistanceValue.value = state.newTargetDistanceValue;
+      el.newTargetDistanceUnit.replaceChildren();
+      DISTANCE_UNIT_OPTIONS.forEach((unit) => {
+        const option = document.createElement("option");
+        option.value = unit.value;
+        option.textContent = unit.text;
+        if (unit.value === state.newTargetDistanceUnit) option.selected = true;
+        el.newTargetDistanceUnit.appendChild(option);
+      });
       renderPresetList(el.savedPresets.value || String(el.presetName.value || "").trim());
 
       renderTargetCards();
@@ -1930,6 +2149,7 @@
         resWidthPx: parsed.width,
         resHeightPx: parsed.height
       };
+      setAddTargetStatus("");
       recalcAndRender();
       scheduleSessionSave();
       setPresetStatus("Calibration updated.");
@@ -1994,6 +2214,7 @@
       const { holder } = activeTargetDrag;
       holder.classList.remove("dragging");
       activeTargetDrag = null;
+      setAddTargetStatus("");
       recalcAndRender();
       scheduleSessionSave();
     }
@@ -2003,6 +2224,9 @@
     // =====================
     function recalcAndRender() {
       normalizeTargetPositionOrders();
+      if (state.targets.length === 0) {
+        setAddTargetStatus("");
+      }
       const errors = [];
       const warnings = [];
       const spatialTargets = getTargetsInSpatialOrder();
@@ -2257,16 +2481,37 @@
       e.target.value = "";
     });
 
+    el.newTargetShape.addEventListener("change", (e) => {
+      state.newTargetShape = e.target.value;
+      normalizeNewTargetDefaults();
+      renderNewTargetTypeOptions(state.newTargetShape, state.newTargetType);
+      setAddTargetStatus("");
+      scheduleSessionSave();
+    });
+
+    el.newTargetType.addEventListener("change", (e) => {
+      state.newTargetType = e.target.value;
+      setAddTargetStatus("");
+      scheduleSessionSave();
+    });
+
     el.updateCalibrationBtn.addEventListener("click", applyCalibrationFromInputs);
     el.addTargetBtn.addEventListener("click", () => addTarget());
     el.resetBtn.addEventListener("click", resetAll);
     el.newTargetDistanceValue.addEventListener("input", (e) => {
       state.newTargetDistanceValue = sanitizeFiniteNumber(e.target.value, 7);
+      setAddTargetStatus("");
+      scheduleSessionSave();
+    });
+    el.newTargetDistanceUnit.addEventListener("change", (e) => {
+      state.newTargetDistanceUnit = e.target.value;
+      setAddTargetStatus("");
       scheduleSessionSave();
     });
 
     el.spacingMode.addEventListener("change", (e) => {
       state.spacingMode = e.target.value;
+      setAddTargetStatus("");
       renderSpacingControls();
       recalcAndRender();
       scheduleSessionSave();
