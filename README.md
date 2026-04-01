@@ -94,8 +94,6 @@ To use:
 - Drag-and-drop target placement
 - Save/load stage configurations
 - More accurate target shapes
-- Mobile/tablet support
-- Adjustable field of view / head movement simulation
 
 ---
 
