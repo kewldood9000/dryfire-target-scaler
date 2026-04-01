@@ -552,7 +552,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.26</p>
+      <p class="version">Ver. 1.1.27</p>
 
       <section class="section stack-section" aria-labelledby="new-target-title">
         <h2 id="new-target-title">New Target</h2>
@@ -637,7 +637,7 @@
             Background
             <select id="backgroundMode">
               <option value="blank" selected>Blank</option>
-              <option value="artic">Artic</option>
+              <option value="artic">Arctic</option>
               <option value="flat-range">Flat-Range</option>
               <option value="horizon">Horizon</option>
               <option value="military-fob">Military FOB</option>
@@ -1450,7 +1450,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.26",
+        version: "1.1.27",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1491,7 +1491,7 @@
       }
       const presetMap = readPresetMap();
       presetMap[name] = {
-        version: "1.1.26",
+        version: "1.1.27",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1521,7 +1521,7 @@
       const copyName = getUniquePresetCopyName(baseName, presetMap);
 
       presetMap[copyName] = {
-        version: "1.1.26",
+        version: "1.1.27",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1575,7 +1575,7 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.26",
+        version: "1.1.27",
         exportedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
