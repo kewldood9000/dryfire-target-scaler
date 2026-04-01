@@ -82,6 +82,34 @@
       font-size: 1rem;
     }
 
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .section-head-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .section-head-copy h2 {
+      margin-bottom: 0;
+    }
+
+    .section-head.collapsible {
+      cursor: pointer;
+    }
+
+    .section-body {
+      margin-top: 10px;
+    }
+
+    .section-body.hidden {
+      display: none;
+    }
+
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -216,6 +244,8 @@
       font-weight: 700;
       font-size: 0.95rem;
       letter-spacing: 0.01em;
+      cursor: pointer;
+      user-select: none;
     }
 
     .hint {
@@ -257,8 +287,8 @@
       box-shadow: var(--shadow);
       background: linear-gradient(180deg, #2b2d31 0%, #1e1f22 100%);
       display: grid;
-      grid-template-rows: auto auto 1fr auto;
-      min-height: calc(100vh - 32px);
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      height: calc(100vh - 32px);
       overflow: hidden;
     }
 
@@ -463,11 +493,21 @@
       border-top: 1px solid var(--line);
       padding: 8px 12px;
       background: rgba(35, 36, 40, 0.96);
+      min-height: 0;
     }
 
     .display-presets {
       display: grid;
       gap: 6px;
+    }
+
+    #presetStatus {
+      min-height: 1.1rem;
+    }
+
+    #presetStatus:empty {
+      display: block;
+      visibility: hidden;
     }
 
     .display-presets-grid {
@@ -552,7 +592,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.28</p>
+      <p class="version">Ver. 1.1.44</p>
 
       <section class="section stack-section" aria-labelledby="new-target-title">
         <h2 id="new-target-title">New Target</h2>
@@ -580,20 +620,26 @@
       </section>
 
       <section class="section stack-section" aria-labelledby="targets-title">
-        <h2 id="targets-title">Target Settings</h2>
+        <div class="section-head">
+          <div class="section-head-copy">
+            <h2 id="targets-title">Target Settings</h2>
+          </div>
+          <button id="minimizeAllTargetsBtn" class="btn win" type="button" aria-label="Minimize all target cards" title="Minimize all target cards">−</button>
+        </div>
         <div id="targetList" aria-live="polite"></div>
       </section>
 
       <section id="spacingSection" class="section hidden" aria-labelledby="spacing-title">
-        <h2 id="spacing-title">Target Spacing</h2>
-        <label>
-          Spacing Mode
-          <select id="spacingMode">
-            <option value="equal">Equal spacing on screen</option>
-            <option value="custom">Custom real-world spacing</option>
-          </select>
-        </label>
-        <div id="spacingInputs" class="grid-2" style="margin-top:10px"></div>
+        <div id="spacingHead" class="section-head collapsible">
+          <div class="section-head-copy">
+            <h2 id="spacing-title">Target Spacing</h2>
+            <div id="spacingStatus" class="status-note error" aria-live="polite"></div>
+          </div>
+          <button id="spacingToggleBtn" class="btn win" type="button" aria-label="Expand target spacing">□</button>
+        </div>
+        <div id="spacingBody" class="section-body hidden">
+          <div id="spacingInputs" class="grid-2"></div>
+        </div>
       </section>
 
       <div id="alerts" class="alerts" aria-live="polite"></div>
@@ -719,6 +765,7 @@
     const TARGET_SIZE_STORAGE_KEY = "dryfire_target_real_world_sizes_v1";
     const PRESET_STORAGE_KEY = "dryfire_presets_v1";
     const SESSION_STORAGE_KEY = "dryfire_recent_session_v1";
+    const TARGET_ROW_VERTICAL_OFFSET_RATIO = 0.08;
     const TARGET_FAMILY_BY_SHAPE = {
       USPSA: "uspsa",
       IPSC: "ipsc",
@@ -854,6 +901,7 @@
       newTargetDistanceUnit: "yd",
       spacingMode: "equal",
       customSpacingsIn: [],
+      spacingCollapsed: true,
       backgroundMode: "blank"
     };
 
@@ -905,6 +953,7 @@
         newTargetDistanceUnit: "yd",
         spacingMode: "equal",
         customSpacingsIn: [],
+        spacingCollapsed: true,
         backgroundMode: "blank"
       };
     }
@@ -935,14 +984,43 @@
       });
     }
 
-    function getTargetDisplayLabel(target) {
-      const spatialTargets = getTargetsInSpatialOrder();
-      const displayIndex = spatialTargets.findIndex((entry) => entry.id === target.id);
-      return `T${displayIndex + 1}`;
+    function getTargetDisplayLabelMap(targets = state.targets) {
+      const labels = new Map();
+      targets
+        .slice()
+        .sort((a, b) => {
+          const aOrder = sanitizeFiniteNumber(a.positionOrder, Number.MAX_SAFE_INTEGER);
+          const bOrder = sanitizeFiniteNumber(b.positionOrder, Number.MAX_SAFE_INTEGER);
+          if (aOrder !== bOrder) return aOrder - bOrder;
+          return sanitizeFiniteNumber(a.id, 0) - sanitizeFiniteNumber(b.id, 0);
+        })
+        .forEach((target, index) => {
+          labels.set(target.id, `T${index + 1}`);
+        });
+      return labels;
+    }
+
+    function getTargetDisplayLabel(target, labelMap = null) {
+      const labels = labelMap || getTargetDisplayLabelMap();
+      return labels.get(target.id) || "T?";
     }
 
     function setAddTargetStatus(message = "") {
       el.addTargetStatus.textContent = message;
+    }
+
+    function setSpacingStatus(message = "", isError = true) {
+      el.spacingStatus.textContent = message;
+      el.spacingStatus.classList.toggle("error", Boolean(message) && isError);
+    }
+
+    function toggleSpacingSection(forceCollapsed) {
+      const nextCollapsed = typeof forceCollapsed === "boolean"
+        ? forceCollapsed
+        : !state.spacingCollapsed;
+      state.spacingCollapsed = nextCollapsed;
+      renderSpacingControls();
+      scheduleSessionSave();
     }
 
     function getMinimumTargetCenterSeparationPx(widthA, widthB) {
@@ -954,13 +1032,34 @@
       return clamp(xPx, halfWidthPx, stageWidthPx - halfWidthPx);
     }
 
+    function computeRenderedTargetCenterXPx(target, baseXPx, widthPx, stageWidthPx, ppi, applyManualPlacements = true) {
+      if (!applyManualPlacements) {
+        return clampTargetCenterXPx(baseXPx, widthPx, stageWidthPx);
+      }
+
+      const manualScreenXIn = target ? toNumber(target.manualScreenXIn) : NaN;
+      if (Number.isFinite(manualScreenXIn)) {
+        return clampTargetCenterXPx(
+          (stageWidthPx / 2) + (manualScreenXIn * ppi),
+          widthPx,
+          stageWidthPx
+        );
+      }
+
+      const manualScreenOffsetIn = sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0);
+      return clampTargetCenterXPx(
+        baseXPx + manualScreenOffsetIn * ppi,
+        widthPx,
+        stageWidthPx
+      );
+    }
+
     function computeProjectedTargetsForState(targets, options = {}) {
       const {
-        customSpacingsIn = state.customSpacingsIn,
-        spacingMode = state.spacingMode,
         calibration = state.calibration,
         stageWidthPx,
-        stageHeightPx
+        stageHeightPx,
+        applyManualPlacements = true
       } = options;
 
       const viewDistanceIn = toNumber(calibration.viewDistanceIn);
@@ -988,6 +1087,8 @@
         return distanceIn > 0 ? distanceIn : NaN;
       });
       if (distancesIn.some((distanceIn) => !(distanceIn > 0))) return null;
+      const targetRowCenterYPx = computeTargetRowCenterYPx(stageHeightPx);
+      const targetById = new Map(spatialTargets.map((target) => [target.id, target]));
 
       const projectedTargets = spatialTargets.map((target, index) => {
         const def = TARGET_DEFS[target.shape] || TARGET_DEFS.USPSA;
@@ -998,53 +1099,35 @@
 
         return {
           targetId: target.id,
+          distanceIn: distIn,
+          def,
           hPx: hInOnScreen * ppi,
           wPx: wInOnScreen * ppi,
           baseXPx: stageWidthPx / 2,
-          xPx: stageWidthPx / 2
+          xPx: stageWidthPx / 2,
+          baseYPx: targetRowCenterYPx,
+          yPx: targetRowCenterYPx
         };
       });
 
-      if (spacingMode === "equal") {
-        const equalLayout = computeEqualScreenXPositions(
-          projectedTargets.map((entry) => entry.wPx),
-          stageWidthPx
-        );
-        projectedTargets.forEach((entry, index) => {
-          entry.baseXPx = equalLayout.xPositions[index];
-          entry.xPx = equalLayout.xPositions[index];
-        });
-      } else {
-        const centeredRealX = computeCenteredRealWorldXFromAdjacent(
-          customSpacingsIn.map((gap) => toNumber(gap)),
-          projectedTargets.length
-        );
-
-        projectedTargets.forEach((entry, index) => {
-          const angle = Math.atan(centeredRealX[index] / distancesIn[index]);
-          const xIn = viewDistanceIn * Math.tan(angle);
-          const xPx = stageWidthPx / 2 + xIn * ppi;
-          entry.baseXPx = xPx;
-          entry.xPx = xPx;
-        });
-      }
+      const equalLayout = computeEqualScreenXPositions(
+        projectedTargets.map((entry) => entry.wPx),
+        stageWidthPx
+      );
+      projectedTargets.forEach((entry, index) => {
+        entry.baseXPx = equalLayout.xPositions[index];
+        entry.xPx = equalLayout.xPositions[index];
+      });
 
       projectedTargets.forEach((entry) => {
-        const target = targets.find((candidate) => candidate.id === entry.targetId);
-        const manualScreenXIn = target ? toNumber(target.manualScreenXIn) : NaN;
-        if (Number.isFinite(manualScreenXIn)) {
-          entry.xPx = clampTargetCenterXPx(
-            (stageWidthPx / 2) + (manualScreenXIn * ppi),
-            entry.wPx,
-            stageWidthPx
-          );
-          return;
-        }
-        const manualScreenOffsetIn = sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0);
-        entry.xPx = clampTargetCenterXPx(
-          entry.baseXPx + manualScreenOffsetIn * ppi,
+        const target = targetById.get(entry.targetId);
+        entry.xPx = computeRenderedTargetCenterXPx(
+          target,
+          entry.baseXPx,
           entry.wPx,
-          stageWidthPx
+          stageWidthPx,
+          ppi,
+          applyManualPlacements
         );
       });
 
@@ -1053,8 +1136,8 @@
         const halfH = entry.hPx / 2;
         const left = entry.xPx - halfW;
         const right = entry.xPx + halfW;
-        const top = stageHeightPx / 2 - halfH;
-        const bottom = stageHeightPx / 2 + halfH;
+        const top = entry.yPx - halfH;
+        const bottom = entry.yPx + halfH;
         return (
           left < -TARGET_OVERFLOW_EPSILON_PX ||
           right > stageWidthPx + TARGET_OVERFLOW_EPSILON_PX ||
@@ -1081,42 +1164,137 @@
       };
     }
 
-    function constrainDraggedTargetXPx(candidateXPx, draggedTargetId, draggedWidthPx, directionHint = 0) {
-      if (!lastRenderMetrics) return candidateXPx;
+    function getAllowedDragIntervals(draggedTargetId, draggedWidthPx) {
+      if (!lastRenderMetrics) return [];
 
-      let nextXPx = clamp(
-        candidateXPx,
-        draggedWidthPx / 2,
-        lastRenderMetrics.stageW - draggedWidthPx / 2
-      );
-
+      const minCenterXPx = draggedWidthPx / 2;
+      const maxCenterXPx = lastRenderMetrics.stageW - draggedWidthPx / 2;
       const targetEntries = Array.isArray(lastRenderMetrics.targetEntries) ? lastRenderMetrics.targetEntries : [];
-      for (let pass = 0; pass < targetEntries.length * 2; pass += 1) {
-        let adjusted = false;
 
-        for (const entry of targetEntries) {
-          if (!entry || entry.targetId === draggedTargetId) continue;
+      const forbidden = targetEntries
+        .filter((entry) => entry && entry.targetId !== draggedTargetId)
+        .map((entry) => ({
+          start: clamp(entry.xPx - getMinimumTargetCenterSeparationPx(entry.wPx, draggedWidthPx), minCenterXPx, maxCenterXPx),
+          end: clamp(entry.xPx + getMinimumTargetCenterSeparationPx(entry.wPx, draggedWidthPx), minCenterXPx, maxCenterXPx)
+        }))
+        .sort((a, b) => a.start - b.start);
 
-          const minSeparationPx = getMinimumTargetCenterSeparationPx(draggedWidthPx, entry.wPx);
-          if (Math.abs(nextXPx - entry.xPx) >= minSeparationPx) continue;
-
-          const direction = nextXPx === entry.xPx
-            ? (directionHint >= 0 ? 1 : -1)
-            : Math.sign(nextXPx - entry.xPx);
-
-          nextXPx = entry.xPx + (direction * minSeparationPx);
-          nextXPx = clamp(
-            nextXPx,
-            draggedWidthPx / 2,
-            lastRenderMetrics.stageW - draggedWidthPx / 2
-          );
-          adjusted = true;
+      const allowed = [];
+      let cursor = minCenterXPx;
+      forbidden.forEach((interval) => {
+        if (interval.start > cursor) {
+          allowed.push({ start: cursor, end: interval.start });
         }
+        cursor = Math.max(cursor, interval.end);
+      });
+      if (cursor < maxCenterXPx) {
+        allowed.push({ start: cursor, end: maxCenterXPx });
+      }
+      return allowed;
+    }
 
-        if (!adjusted) break;
+    function findAllowedIntervalIndex(allowedIntervals, xPx) {
+      return allowedIntervals.findIndex((interval) => xPx >= interval.start && xPx <= interval.end);
+    }
+
+    function findNearestAllowedIntervalIndex(allowedIntervals, xPx) {
+      let bestIndex = 0;
+      let bestDistance = Number.POSITIVE_INFINITY;
+
+      allowedIntervals.forEach((interval, index) => {
+        const distance = xPx < interval.start
+          ? (interval.start - xPx)
+          : xPx > interval.end
+            ? (xPx - interval.end)
+            : 0;
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestIndex = index;
+        }
+      });
+
+      return bestIndex;
+    }
+
+    function constrainDraggedTargetXPx(candidateXPx, currentXPx, draggedTargetId, draggedWidthPx, currentIntervalIndex, directionHint = 0) {
+      if (!lastRenderMetrics) {
+        return { xPx: candidateXPx, intervalIndex: 0 };
       }
 
-      return nextXPx;
+      const minCenterXPx = draggedWidthPx / 2;
+      const maxCenterXPx = lastRenderMetrics.stageW - draggedWidthPx / 2;
+      const safeCandidateXPx = clamp(candidateXPx, minCenterXPx, maxCenterXPx);
+      const safeCurrentXPx = clamp(currentXPx, minCenterXPx, maxCenterXPx);
+      const allowed = getAllowedDragIntervals(draggedTargetId, draggedWidthPx);
+
+      if (!allowed.length) {
+        return { xPx: safeCurrentXPx, intervalIndex: 0 };
+      }
+
+      const normalizedCurrentIntervalIndex = (
+        Number.isInteger(currentIntervalIndex) &&
+        currentIntervalIndex >= 0 &&
+        currentIntervalIndex < allowed.length
+      )
+        ? currentIntervalIndex
+        : (() => {
+            const exactIndex = findAllowedIntervalIndex(allowed, safeCurrentXPx);
+            return exactIndex >= 0 ? exactIndex : findNearestAllowedIntervalIndex(allowed, safeCurrentXPx);
+          })();
+
+      const candidateIntervalIndex = findAllowedIntervalIndex(allowed, safeCandidateXPx);
+      const movementDirection = directionHint === 0 ? Math.sign(safeCandidateXPx - safeCurrentXPx) : Math.sign(directionHint);
+      const currentInterval = allowed[normalizedCurrentIntervalIndex];
+
+      if (candidateIntervalIndex === normalizedCurrentIntervalIndex) {
+        return {
+          xPx: clamp(safeCandidateXPx, currentInterval.start, currentInterval.end),
+          intervalIndex: normalizedCurrentIntervalIndex
+        };
+      }
+
+      if (candidateIntervalIndex >= 0) {
+        const intervalDelta = candidateIntervalIndex - normalizedCurrentIntervalIndex;
+        if (Math.abs(intervalDelta) === 1 && Math.sign(intervalDelta) === movementDirection) {
+          const candidateInterval = allowed[candidateIntervalIndex];
+          return {
+            xPx: clamp(safeCandidateXPx, candidateInterval.start, candidateInterval.end),
+            intervalIndex: candidateIntervalIndex
+          };
+        }
+      }
+
+      if (safeCandidateXPx <= currentInterval.start) {
+        return {
+          xPx: currentInterval.start,
+          intervalIndex: normalizedCurrentIntervalIndex
+        };
+      }
+
+      if (safeCandidateXPx >= currentInterval.end) {
+        return {
+          xPx: currentInterval.end,
+          intervalIndex: normalizedCurrentIntervalIndex
+        };
+      }
+
+      if (movementDirection < 0) {
+        return {
+          xPx: currentInterval.start,
+          intervalIndex: normalizedCurrentIntervalIndex
+        };
+      }
+      if (movementDirection > 0) {
+        return {
+          xPx: currentInterval.end,
+          intervalIndex: normalizedCurrentIntervalIndex
+        };
+      }
+
+      return {
+        xPx: clamp(safeCandidateXPx, currentInterval.start, currentInterval.end),
+        intervalIndex: normalizedCurrentIntervalIndex
+      };
     }
 
     function findAvailableTargetCenterXPx(existingEntries, newTargetWidthPx, stageWidthPx) {
@@ -1126,8 +1304,8 @@
 
       const forbidden = existingEntries
         .map((entry) => ({
-          start: entry.xPx - ((entry.wPx + newTargetWidthPx) / 2),
-          end: entry.xPx + ((entry.wPx + newTargetWidthPx) / 2)
+          start: entry.xPx - getMinimumTargetCenterSeparationPx(entry.wPx, newTargetWidthPx),
+          end: entry.xPx + getMinimumTargetCenterSeparationPx(entry.wPx, newTargetWidthPx)
         }))
         .sort((a, b) => a.start - b.start);
 
@@ -1255,8 +1433,9 @@
         newTargetType: String(state.newTargetType || "open"),
         newTargetDistanceValue: sanitizeFiniteNumber(state.newTargetDistanceValue, 7),
         newTargetDistanceUnit: state.newTargetDistanceUnit === "m" ? "m" : "yd",
-        spacingMode: state.spacingMode === "custom" ? "custom" : "equal",
+        spacingMode: "equal",
         customSpacingsIn: state.customSpacingsIn.map((gap) => sanitizeFiniteNumber(gap, 36)),
+        spacingCollapsed: Boolean(state.spacingCollapsed),
         backgroundMode: STAGE_BACKGROUNDS[state.backgroundMode] ? state.backgroundMode : "blank"
       };
     }
@@ -1293,10 +1472,11 @@
         newTargetType: String(source.newTargetType || defaults.newTargetType),
         newTargetDistanceValue: sanitizeFiniteNumber(source.newTargetDistanceValue, defaults.newTargetDistanceValue),
         newTargetDistanceUnit: source.newTargetDistanceUnit === "m" ? "m" : defaults.newTargetDistanceUnit,
-        spacingMode: source.spacingMode === "custom" ? "custom" : "equal",
+        spacingMode: "equal",
         customSpacingsIn: Array.isArray(source.customSpacingsIn)
           ? source.customSpacingsIn.map((gap) => sanitizeFiniteNumber(gap, 36))
           : [],
+        spacingCollapsed: source.spacingCollapsed == null ? defaults.spacingCollapsed : Boolean(source.spacingCollapsed),
         backgroundMode: STAGE_BACKGROUNDS[source.backgroundMode] ? source.backgroundMode : defaults.backgroundMode
       };
 
@@ -1334,6 +1514,7 @@
       state.newTargetDistanceUnit = nextState.newTargetDistanceUnit;
       state.spacingMode = nextState.spacingMode;
       state.customSpacingsIn = nextState.customSpacingsIn;
+      state.spacingCollapsed = nextState.spacingCollapsed;
       state.backgroundMode = nextState.backgroundMode;
       normalizeTargetPositionOrders();
       syncCustomSpacingLength();
@@ -1450,7 +1631,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.28",
+        version: "1.1.44",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1491,7 +1672,7 @@
       }
       const presetMap = readPresetMap();
       presetMap[name] = {
-        version: "1.1.28",
+        version: "1.1.44",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1521,7 +1702,7 @@
       const copyName = getUniquePresetCopyName(baseName, presetMap);
 
       presetMap[copyName] = {
-        version: "1.1.28",
+        version: "1.1.44",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1575,7 +1756,7 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.28",
+        version: "1.1.44",
         exportedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1641,11 +1822,14 @@
       return 2 * viewerDistanceIn * Math.tan(ang / 2);
     }
 
-    function computeCenteredRealWorldXFromAdjacent(spacingsIn, targetCount) {
+    function computeCenteredRealWorldXFromAdjacent(edgeGapsIn, targetWidthsIn) {
+      const targetCount = targetWidthsIn.length;
       if (targetCount === 0) return [];
       const x = new Array(targetCount).fill(0);
       for (let i = 1; i < targetCount; i += 1) {
-        x[i] = x[i - 1] + spacingsIn[i - 1];
+        const previousHalfWidth = targetWidthsIn[i - 1] / 2;
+        const nextHalfWidth = targetWidthsIn[i] / 2;
+        x[i] = x[i - 1] + previousHalfWidth + edgeGapsIn[i - 1] + nextHalfWidth;
       }
       const midpoint = (x[0] + x[targetCount - 1]) / 2;
       return x.map((v) => v - midpoint);
@@ -1666,6 +1850,132 @@
       }
 
       return { xPositions, gapPx };
+    }
+
+    function computeTargetRowCenterYPx(stageHeightPx) {
+      return (stageHeightPx / 2) + (stageHeightPx * TARGET_ROW_VERTICAL_OFFSET_RATIO);
+    }
+
+    function getStageDimensions() {
+      const stageRect = el.stage.getBoundingClientRect();
+      return {
+        width: stageRect.width,
+        height: stageRect.height
+      };
+    }
+
+    function buildProjectedTargetMaps(projectedTargets) {
+      return new Map(projectedTargets.map((entry) => [entry.targetId, entry]));
+    }
+
+    function computeCurrentProjectedTargets() {
+      const stageDimensions = getStageDimensions();
+      if (!(stageDimensions.width > 0) || !(stageDimensions.height > 0)) return null;
+      return computeProjectedTargetsForState(state.targets, {
+        stageWidthPx: stageDimensions.width,
+        stageHeightPx: stageDimensions.height,
+        applyManualPlacements: true
+      });
+    }
+
+    function getProjectedScreenXIn(entry, stageWidthPx, ppi) {
+      return (entry.xPx - (stageWidthPx / 2)) / ppi;
+    }
+
+    function getProjectedRealWorldXIn(entry, stageWidthPx, ppi, viewDistanceIn) {
+      const screenXIn = getProjectedScreenXIn(entry, stageWidthPx, ppi);
+      return entry.distanceIn * (screenXIn / viewDistanceIn);
+    }
+
+    function computeActualAdjacentGapIn(leftProjected, rightProjected, stageWidthPx, ppi, viewDistanceIn) {
+      const leftRealXIn = getProjectedRealWorldXIn(leftProjected, stageWidthPx, ppi, viewDistanceIn);
+      const rightRealXIn = getProjectedRealWorldXIn(rightProjected, stageWidthPx, ppi, viewDistanceIn);
+      return rightRealXIn - (leftRealXIn + (leftProjected.def.widthIn / 2) + (rightProjected.def.widthIn / 2));
+    }
+
+    function applySpacingSnap(index, requestedGapIn) {
+      const gapIn = sanitizeFiniteNumber(requestedGapIn, NaN);
+      if (!(gapIn >= 0)) {
+        setSpacingStatus("Spacing value must be 0 or greater.");
+        return false;
+      }
+
+      const stageDimensions = getStageDimensions();
+      if (!(stageDimensions.width > 0) || !(stageDimensions.height > 0)) {
+        setSpacingStatus("Unable to measure the target display area.");
+        return false;
+      }
+
+      const projected = computeProjectedTargetsForState(state.targets, {
+        stageWidthPx: stageDimensions.width,
+        stageHeightPx: stageDimensions.height,
+        applyManualPlacements: true
+      });
+      if (!projected || !(projected.ppi > 0)) {
+        setSpacingStatus("Unable to compute target spacing with the current calibration.");
+        return false;
+      }
+
+      const spatialTargets = getTargetsInSpatialOrder();
+      const leftTarget = spatialTargets[index];
+      const rightTarget = spatialTargets[index + 1];
+      if (!leftTarget || !rightTarget) return false;
+
+      const projectedById = buildProjectedTargetMaps(projected.projectedTargets);
+      const leftProjected = projectedById.get(leftTarget.id);
+      const rightProjected = projectedById.get(rightTarget.id);
+      if (!leftProjected || !rightProjected) {
+        setSpacingStatus("Unable to resolve the selected target pair.");
+        return false;
+      }
+
+      const viewDistanceIn = sanitizeFiniteNumber(state.calibration.viewDistanceIn, NaN);
+      if (!(viewDistanceIn > 0)) {
+        setSpacingStatus("Viewing distance must be greater than 0.");
+        return false;
+      }
+
+      const leftRealXIn = getProjectedRealWorldXIn(leftProjected, stageDimensions.width, projected.ppi, viewDistanceIn);
+      const currentRightScreenXIn = getProjectedScreenXIn(rightProjected, stageDimensions.width, projected.ppi);
+      const desiredRightRealXIn = leftRealXIn + (leftProjected.def.widthIn / 2) + gapIn + (rightProjected.def.widthIn / 2);
+      const desiredRightScreenXIn = viewDistanceIn * (desiredRightRealXIn / rightProjected.distanceIn);
+      const deltaScreenXIn = desiredRightScreenXIn - currentRightScreenXIn;
+
+      const proposedTargets = state.targets.map((target) => ({ ...target }));
+      const proposedSpatialTargets = proposedTargets
+        .slice()
+        .sort((a, b) => sanitizeFiniteNumber(a.positionOrder, 0) - sanitizeFiniteNumber(b.positionOrder, 0));
+
+      for (let i = index + 1; i < proposedSpatialTargets.length; i += 1) {
+        const movedTarget = proposedSpatialTargets[i];
+        const currentEntry = projectedById.get(movedTarget.id);
+        if (!currentEntry) continue;
+        const currentScreenXIn = getProjectedScreenXIn(currentEntry, stageDimensions.width, projected.ppi);
+        movedTarget.manualScreenXIn = currentScreenXIn + deltaScreenXIn;
+        movedTarget.manualScreenOffsetIn = 0;
+      }
+
+      const proposedProjection = computeProjectedTargetsForState(proposedTargets, {
+        stageWidthPx: stageDimensions.width,
+        stageHeightPx: stageDimensions.height,
+        applyManualPlacements: true
+      });
+
+      if (!proposedProjection || proposedProjection.overflows) {
+        setSpacingStatus("Spacing conflict: another target is in the way.");
+        return false;
+      }
+
+      proposedTargets.forEach((target, targetIndex) => {
+        state.targets[targetIndex].manualScreenXIn = target.manualScreenXIn;
+        state.targets[targetIndex].manualScreenOffsetIn = target.manualScreenOffsetIn;
+      });
+      state.customSpacingsIn[index] = gapIn;
+      setSpacingStatus("");
+      renderSpacingControls();
+      recalcAndRender();
+      scheduleSessionSave();
+      return true;
     }
 
     // =====================
@@ -1689,6 +1999,7 @@
       addTargetBtn: document.getElementById("addTargetBtn"),
       resetBtn: document.getElementById("resetBtn"),
       addTargetStatus: document.getElementById("addTargetStatus"),
+      minimizeAllTargetsBtn: document.getElementById("minimizeAllTargetsBtn"),
       newTargetShape: document.getElementById("newTargetShape"),
       newTargetType: document.getElementById("newTargetType"),
       newTargetDistanceValue: document.getElementById("newTargetDistanceValue"),
@@ -1696,7 +2007,10 @@
       updateCalibrationBtn: document.getElementById("updateCalibrationBtn"),
       targetList: document.getElementById("targetList"),
       spacingSection: document.getElementById("spacingSection"),
-      spacingMode: document.getElementById("spacingMode"),
+      spacingHead: document.getElementById("spacingHead"),
+      spacingBody: document.getElementById("spacingBody"),
+      spacingToggleBtn: document.getElementById("spacingToggleBtn"),
+      spacingStatus: document.getElementById("spacingStatus"),
       spacingInputs: document.getElementById("spacingInputs"),
       backgroundMode: document.getElementById("backgroundMode"),
       stage: document.getElementById("stage"),
@@ -1829,6 +2143,7 @@
     // =====================
     function addTarget(defaults = {}) {
       normalizeNewTargetDefaults();
+      state.spacingCollapsed = true;
       const nextTarget = {
         id: targetIdCounter,
         shape: defaults.shape || state.newTargetShape || "USPSA",
@@ -1886,6 +2201,7 @@
       }
 
       setAddTargetStatus("");
+      setSpacingStatus("");
       state.targets.push(nextTarget);
       targetIdCounter += 1;
       normalizeTargetPositionOrders();
@@ -1898,6 +2214,7 @@
     function removeTarget(index) {
       state.targets.splice(index, 1);
       setAddTargetStatus("");
+      setSpacingStatus("");
       normalizeTargetPositionOrders();
       syncCustomSpacingLength();
       renderUI();
@@ -1917,12 +2234,27 @@
       scheduleSessionSave();
     }
 
+    function minimizeAllTargets() {
+      let didChange = false;
+      state.targets.forEach((target) => {
+        if (!target.collapsed) {
+          target.collapsed = true;
+          didChange = true;
+        }
+      });
+      if (!didChange) return;
+      renderUI();
+      scheduleSessionSave();
+    }
+
     function resetAll() {
       state.targets = [];
       state.spacingMode = "equal";
       state.customSpacingsIn = [];
+      state.spacingCollapsed = true;
       targetIdCounter = 1;
       setAddTargetStatus("");
+      setSpacingStatus("");
       renderUI();
       applySelectedStageBackground();
       recalcAndRender();
@@ -1942,6 +2274,7 @@
 
     function renderTargetCards() {
       const fragment = document.createDocumentFragment();
+      const displayLabelById = getTargetDisplayLabelMap();
 
       state.targets.forEach((target, index) => {
         normalizeTargetTypeForShape(target);
@@ -1951,10 +2284,16 @@
 
         const head = document.createElement("div");
         head.className = "target-head";
+        head.addEventListener("click", () => {
+          if (!target.collapsed) return;
+          target.collapsed = false;
+          renderUI();
+          scheduleSessionSave();
+        });
 
         const title = document.createElement("div");
         title.className = "target-title";
-        title.textContent = getTargetDisplayLabel(target);
+        title.textContent = getTargetDisplayLabel(target, displayLabelById);
 
         const actions = document.createElement("div");
         actions.className = "target-head-actions";
@@ -1966,7 +2305,10 @@
         upBtn.title = "Move target up";
         upBtn.setAttribute("aria-label", "Move target up");
         upBtn.disabled = index === 0;
-        upBtn.addEventListener("click", () => moveTarget(index, index - 1));
+        upBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          moveTarget(index, index - 1);
+        });
 
         const downBtn = document.createElement("button");
         downBtn.type = "button";
@@ -1975,7 +2317,10 @@
         downBtn.title = "Move target down";
         downBtn.setAttribute("aria-label", "Move target down");
         downBtn.disabled = index === state.targets.length - 1;
-        downBtn.addEventListener("click", () => moveTarget(index, index + 1));
+        downBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          moveTarget(index, index + 1);
+        });
 
         const collapseBtn = document.createElement("button");
         collapseBtn.type = "button";
@@ -1983,7 +2328,8 @@
         collapseBtn.textContent = target.collapsed ? "□" : "−";
         collapseBtn.title = target.collapsed ? "Expand target card" : "Minimize target card";
         collapseBtn.setAttribute("aria-label", collapseBtn.title);
-        collapseBtn.addEventListener("click", () => {
+        collapseBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
           target.collapsed = !target.collapsed;
           renderUI();
           scheduleSessionSave();
@@ -1995,7 +2341,10 @@
         removeBtn.textContent = "×";
         removeBtn.title = "Remove target";
         removeBtn.setAttribute("aria-label", "Remove target");
-        removeBtn.addEventListener("click", () => removeTarget(index));
+        removeBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          removeTarget(index);
+        });
 
         actions.append(upBtn, downBtn, collapseBtn, removeBtn);
         head.append(title, actions);
@@ -2014,6 +2363,7 @@
           target.shape = e.target.value;
           normalizeTargetTypeForShape(target);
           setAddTargetStatus("");
+          setSpacingStatus("");
           renderUI();
           recalcAndRender();
           scheduleSessionSave();
@@ -2033,6 +2383,7 @@
         typeSelect.addEventListener("change", (e) => {
           target.type = e.target.value;
           setAddTargetStatus("");
+          setSpacingStatus("");
           recalcAndRender();
           scheduleSessionSave();
         });
@@ -2055,6 +2406,7 @@
             target.distanceValue = toNumber(distInput.value);
             isManualDistanceEdit = false;
             setAddTargetStatus("");
+            setSpacingStatus("");
             recalcAndRender();
             scheduleSessionSave();
             return;
@@ -2075,6 +2427,7 @@
           if (isManualDistanceEdit) return;
           target.distanceValue = toNumber(e.target.value);
           setAddTargetStatus("");
+          setSpacingStatus("");
           recalcAndRender();
           scheduleSessionSave();
         });
@@ -2098,6 +2451,7 @@
         unitSelect.addEventListener("change", (e) => {
           target.distanceUnit = e.target.value;
           setAddTargetStatus("");
+          setSpacingStatus("");
           recalcAndRender();
           scheduleSessionSave();
         });
@@ -2118,34 +2472,47 @@
     function renderSpacingControls() {
       normalizeTargetPositionOrders();
       const spatialTargets = getTargetsInSpatialOrder();
+      const displayLabelById = getTargetDisplayLabelMap(spatialTargets);
       const show = state.targets.length >= 2;
       el.spacingSection.classList.toggle("hidden", !show);
       if (!show) {
+        state.spacingCollapsed = true;
+        setSpacingStatus("");
         el.spacingInputs.replaceChildren();
         return;
       }
 
-      el.spacingMode.value = state.spacingMode;
+      el.spacingBody.classList.toggle("hidden", Boolean(state.spacingCollapsed));
+      el.spacingToggleBtn.textContent = state.spacingCollapsed ? "□" : "−";
+      el.spacingToggleBtn.title = state.spacingCollapsed ? "Expand target spacing" : "Minimize target spacing";
+      el.spacingToggleBtn.setAttribute("aria-label", el.spacingToggleBtn.title);
 
       const fragment = document.createDocumentFragment();
-      if (state.spacingMode !== "custom") {
-        el.spacingInputs.replaceChildren();
-        return;
-      }
+      const projected = computeCurrentProjectedTargets();
+      const projectedById = projected ? buildProjectedTargetMaps(projected.projectedTargets) : new Map();
+      const viewDistanceIn = sanitizeFiniteNumber(state.calibration.viewDistanceIn, NaN);
+      const stageDimensions = getStageDimensions();
 
       for (let i = 0; i < spatialTargets.length - 1; i += 1) {
         const label = document.createElement("label");
-        label.textContent = `Distance between ${getTargetDisplayLabel(spatialTargets[i])} and ${getTargetDisplayLabel(spatialTargets[i + 1])} (in)`;
+        label.textContent = `Gap between ${getTargetDisplayLabel(spatialTargets[i], displayLabelById)} and ${getTargetDisplayLabel(spatialTargets[i + 1], displayLabelById)} (in)`;
         const input = document.createElement("input");
         input.type = "number";
         input.min = "0";
         input.step = "0.1";
-        input.value = state.customSpacingsIn[i] ?? 36;
-        input.addEventListener("input", (e) => {
-          state.customSpacingsIn[i] = toNumber(e.target.value);
-          setAddTargetStatus("");
-          recalcAndRender();
-          scheduleSessionSave();
+        const leftProjected = projectedById.get(spatialTargets[i].id);
+        const rightProjected = projectedById.get(spatialTargets[i + 1].id);
+        const currentGapIn = (projected && leftProjected && rightProjected && viewDistanceIn > 0)
+          ? computeActualAdjacentGapIn(leftProjected, rightProjected, stageDimensions.width, projected.ppi, viewDistanceIn)
+          : (state.customSpacingsIn[i] ?? 36);
+        input.value = round(Math.max(0, currentGapIn), 1);
+        input.addEventListener("change", (e) => {
+          applySpacingSnap(i, e.target.value);
+        });
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            applySpacingSnap(i, e.target.value);
+          }
         });
         label.appendChild(input);
         fragment.appendChild(label);
@@ -2299,10 +2666,15 @@
         targetIndex,
         baseXPx,
         targetWidthPx,
-        startClientX: pointerEvent.clientX,
+        lastClientX: pointerEvent.clientX,
         startRenderedXPx: parseFloat(holder.style.left),
+        desiredXPx: parseFloat(holder.style.left),
         ppi: lastRenderMetrics.ppi,
-        stageWidthPx: lastRenderMetrics.stageW
+        stageWidthPx: lastRenderMetrics.stageW,
+        currentIntervalIndex: findNearestAllowedIntervalIndex(
+          getAllowedDragIntervals(target.id, targetWidthPx),
+          parseFloat(holder.style.left)
+        )
       };
 
       holder.classList.add("dragging");
@@ -2319,23 +2691,36 @@
         holder,
         targetIndex,
         targetWidthPx,
-        startClientX,
-        startRenderedXPx,
         ppi
       } = activeTargetDrag;
 
-      const deltaPx = pointerEvent.clientX - startClientX;
-      const unclampedXPx = startRenderedXPx + deltaPx;
+      const currentRenderedXPx = Number.isFinite(parseFloat(holder.style.left))
+        ? parseFloat(holder.style.left)
+        : activeTargetDrag.startRenderedXPx;
+      const deltaPx = pointerEvent.clientX - activeTargetDrag.lastClientX;
+      activeTargetDrag.desiredXPx += deltaPx;
+      const unclampedXPx = activeTargetDrag.desiredXPx;
       const draggedTarget = state.targets[targetIndex];
-      const clampedXPx = constrainDraggedTargetXPx(
+      const constrainedDrag = constrainDraggedTargetXPx(
         unclampedXPx,
+        currentRenderedXPx,
         draggedTarget ? draggedTarget.id : null,
         targetWidthPx,
+        activeTargetDrag.currentIntervalIndex,
         deltaPx
       );
+      const clampedXPx = constrainedDrag.xPx;
+      activeTargetDrag.currentIntervalIndex = constrainedDrag.intervalIndex;
+      activeTargetDrag.lastClientX = pointerEvent.clientX;
 
-      state.targets[targetIndex].manualScreenXIn = (clampedXPx - (lastRenderMetrics.stageW / 2)) / ppi;
-      state.targets[targetIndex].manualScreenOffsetIn = 0;
+      if (state.spacingMode === "custom") {
+        state.targets[targetIndex].manualScreenXIn = null;
+        state.targets[targetIndex].manualScreenOffsetIn = (clampedXPx - activeTargetDrag.baseXPx) / ppi;
+      } else {
+        state.targets[targetIndex].manualScreenXIn = (clampedXPx - (lastRenderMetrics.stageW / 2)) / ppi;
+        state.targets[targetIndex].manualScreenOffsetIn = 0;
+      }
+      setSpacingStatus("");
       holder.style.left = `${clampedXPx}px`;
       pointerEvent.preventDefault();
     }
@@ -2361,6 +2746,9 @@
       const errors = [];
       const warnings = [];
       const spatialTargets = getTargetsInSpatialOrder();
+      const displayLabelById = getTargetDisplayLabelMap(spatialTargets);
+      const targetById = new Map(state.targets.map((target) => [target.id, target]));
+      const targetIndexById = new Map(state.targets.map((target, index) => [target.id, index]));
 
       const viewDistanceIn = toNumber(state.calibration.viewDistanceIn);
       const monitorDiagonalIn = toNumber(state.calibration.monitorDiagonalIn);
@@ -2375,19 +2763,9 @@
         const unit = t.distanceUnit || "yd";
         const d = distanceToInches(t.distanceValue, unit);
         const unitName = unit === "m" ? "meters" : "yards";
-        if (!(d > 0)) errors.push(`${getTargetDisplayLabel(t)}: distance must be greater than 0 ${unitName}.`);
+        if (!(d > 0)) errors.push(`${getTargetDisplayLabel(t, displayLabelById)}: distance must be greater than 0 ${unitName}.`);
         return d;
       });
-
-      if (state.spacingMode === "custom") {
-        state.customSpacingsIn.forEach((gap, i) => {
-          if (!(toNumber(gap) >= 0)) {
-            const leftLabel = spatialTargets[i] ? getTargetDisplayLabel(spatialTargets[i]) : `T${i + 1}`;
-            const rightLabel = spatialTargets[i + 1] ? getTargetDisplayLabel(spatialTargets[i + 1]) : `T${i + 2}`;
-            errors.push(`Spacing between ${leftLabel} and ${rightLabel} must be 0 or greater.`);
-          }
-        });
-      }
 
       const ppi = errors.length ? NaN : computePPI(resWidthPx, resHeightPx, monitorDiagonalIn);
       if (!errors.length && !(ppi > 0)) {
@@ -2412,6 +2790,7 @@
       const stageRect = el.stage.getBoundingClientRect();
       const stageW = stageRect.width;
       const stageH = stageRect.height;
+      const targetRowCenterYPx = computeTargetRowCenterYPx(stageH);
       const labelAppearance = getTargetLabelAppearance(state.backgroundMode);
       lastRenderMetrics = { stageW, stageH, ppi };
 
@@ -2435,7 +2814,7 @@
 
         return {
           targetId: t.id,
-          label: getTargetDisplayLabel(t),
+          label: getTargetDisplayLabel(t, displayLabelById),
           shape: t.shape,
           type: t.type,
           typeLabel: getTargetTypeLabel(t.shape, t.type),
@@ -2451,60 +2830,37 @@
           focusSquarePx,
           baseXPx: stageW / 2,
           xPx: stageW / 2,
+          baseYPx: targetRowCenterYPx,
+          yPx: targetRowCenterYPx,
           xInOnScreen: 0,
           angleRad: 0
         };
       });
 
-      if (state.spacingMode === "equal") {
-        const equalLayout = computeEqualScreenXPositions(
-          targetProjected.map((tp) => tp.wPx),
-          stageW
-        );
-        const xs = equalLayout.xPositions;
-        targetProjected.forEach((tp, i) => {
-          tp.baseXPx = xs[i];
-          tp.xPx = xs[i];
-          tp.xInOnScreen = (tp.xPx - stageW / 2) / ppi;
-          tp.angleRad = Math.atan(tp.xInOnScreen / viewDistanceIn);
-        });
-        if (equalLayout.gapPx < 0) {
-          warnings.push("Equal spacing requires more width than available; computed equal gaps are negative, so targets will overlap/overflow.");
-        }
-      } else {
-        const realX = computeCenteredRealWorldXFromAdjacent(
-          state.customSpacingsIn.map((v) => toNumber(v)),
-          targetProjected.length
-        );
-
-        targetProjected.forEach((tp, i) => {
-          const angle = Math.atan(realX[i] / tp.distanceIn);
-          const xIn = viewDistanceIn * Math.tan(angle);
-          const xPx = stageW / 2 + xIn * ppi;
-          tp.baseXPx = xPx;
-          tp.xPx = xPx;
-          tp.xInOnScreen = xIn;
-          tp.angleRad = angle;
-        });
+      const equalLayout = computeEqualScreenXPositions(
+        targetProjected.map((tp) => tp.wPx),
+        stageW
+      );
+      const xs = equalLayout.xPositions;
+      targetProjected.forEach((tp, i) => {
+        tp.baseXPx = xs[i];
+        tp.xPx = xs[i];
+        tp.xInOnScreen = (tp.xPx - stageW / 2) / ppi;
+        tp.angleRad = Math.atan(tp.xInOnScreen / viewDistanceIn);
+      });
+      if (equalLayout.gapPx < 0) {
+        warnings.push("Equal spacing requires more width than available; computed equal gaps are negative, so targets will overlap/overflow.");
       }
 
       targetProjected.forEach((tp) => {
-        const target = state.targets.find((entry) => entry.id === tp.targetId);
-        const manualScreenXIn = target ? toNumber(target.manualScreenXIn) : NaN;
-        if (Number.isFinite(manualScreenXIn)) {
-          tp.xPx = clampTargetCenterXPx(
-            (stageW / 2) + (manualScreenXIn * ppi),
-            tp.wPx,
-            stageW
-          );
-          tp.xInOnScreen = manualScreenXIn;
-          return;
-        }
-        const manualScreenOffsetIn = sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0);
-        tp.xPx = clampTargetCenterXPx(
-          tp.baseXPx + manualScreenOffsetIn * ppi,
+        const target = targetById.get(tp.targetId);
+        tp.xPx = computeRenderedTargetCenterXPx(
+          target,
+          tp.baseXPx,
           tp.wPx,
-          stageW
+          stageW,
+          ppi,
+          true
         );
         tp.xInOnScreen = (tp.xPx - stageW / 2) / ppi;
       });
@@ -2522,18 +2878,18 @@
 
       const projectedById = new Map(targetProjected.map((tp) => [tp.targetId, tp]));
 
-      state.targets.slice().reverse().forEach((target, layerIndex) => {
+      state.targets.slice().reverse().forEach((target) => {
         const tp = projectedById.get(target.id);
         if (!tp) return;
         const holder = document.createElement("div");
         holder.className = "stage-target";
         holder.style.left = `${tp.xPx}px`;
-        holder.style.top = `${stageH / 2}px`;
-        holder.dataset.targetIndex = String(state.targets.findIndex((entry) => entry.id === target.id));
+        holder.style.top = `${tp.yPx}px`;
+        holder.dataset.targetIndex = String(targetIndexById.get(target.id));
         holder.dataset.baseXPx = String(tp.baseXPx);
         holder.dataset.targetWidthPx = String(tp.wPx);
         holder.addEventListener("pointerdown", (pointerEvent) => {
-          beginTargetDrag(pointerEvent, holder, state.targets.findIndex((entry) => entry.id === target.id), tp.baseXPx, tp.wPx);
+          beginTargetDrag(pointerEvent, holder, targetIndexById.get(target.id), tp.baseXPx, tp.wPx);
         });
 
         const visual = createTargetVisual(tp.shape, tp.type, tp.wPx, tp.hPx, tp.label, {
@@ -2553,8 +2909,8 @@
         const halfH = tp.hPx / 2;
         const left = tp.xPx - halfW;
         const right = tp.xPx + halfW;
-        const top = stageH / 2 - halfH;
-        const bottom = stageH / 2 + halfH;
+        const top = tp.yPx - halfH;
+        const bottom = tp.yPx + halfH;
         if (
           left < -TARGET_OVERFLOW_EPSILON_PX ||
           right > stageW + TARGET_OVERFLOW_EPSILON_PX ||
@@ -2573,7 +2929,7 @@
 
       el.metaReadout.innerHTML = `
         <span>Pixels per inch: <strong>${round(ppi, 2)}</strong></span>
-        <span>Mode: <strong>${state.spacingMode === "equal" ? "Equal Screen Spacing" : "Custom Real-World Spacing"}</strong></span>
+        <span>Spacing: <strong>Manual + Snap</strong></span>
         <span>Targets: <strong>${state.targets.length}</strong></span>
       `;
     }
@@ -2648,6 +3004,7 @@
     el.updateCalibrationBtn.addEventListener("click", applyCalibrationFromInputs);
     el.addTargetBtn.addEventListener("click", () => addTarget());
     el.resetBtn.addEventListener("click", resetAll);
+    el.minimizeAllTargetsBtn.addEventListener("click", minimizeAllTargets);
     el.newTargetDistanceValue.addEventListener("input", (e) => {
       state.newTargetDistanceValue = sanitizeFiniteNumber(e.target.value, 7);
       setAddTargetStatus("");
@@ -2659,12 +3016,13 @@
       scheduleSessionSave();
     });
 
-    el.spacingMode.addEventListener("change", (e) => {
-      state.spacingMode = e.target.value;
-      setAddTargetStatus("");
-      renderSpacingControls();
-      recalcAndRender();
-      scheduleSessionSave();
+    el.spacingHead.addEventListener("click", () => {
+      if (!state.spacingCollapsed) return;
+      toggleSpacingSection(false);
+    });
+    el.spacingToggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleSpacingSection();
     });
 
     window.addEventListener("pointermove", handleTargetDragMove);
