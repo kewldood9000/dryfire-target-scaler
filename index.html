@@ -529,7 +529,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.16</p>
+      <p class="version">Ver. 1.1.17</p>
 
       <section class="section" aria-labelledby="targets-title">
         <h2 id="targets-title">Targets</h2>
@@ -537,7 +537,10 @@
           <button id="addTargetBtn" class="btn primary" type="button">Add Target</button>
           <button id="resetBtn" class="btn warn" type="button">Reset</button>
         </div>
-        <p class="hint">Targets higher in the list render on top of targets below them.</p>
+        <label style="margin-top:10px;">
+          New Target Distance (yd)
+          <input id="newTargetDistanceValue" type="number" min="0.1" step="0.1" value="7" />
+        </label>
         <div id="targetList" aria-live="polite"></div>
       </section>
 
@@ -790,6 +793,7 @@
         resHeightPx: 1440
       },
       targets: [],
+      newTargetDistanceValue: 7,
       spacingMode: "equal",
       customSpacingsIn: [],
       backgroundMode: "blank"
@@ -836,6 +840,7 @@
       return {
         calibration: getDefaultCalibration(),
         targets: [],
+        newTargetDistanceValue: 7,
         spacingMode: "equal",
         customSpacingsIn: [],
         backgroundMode: "blank"
@@ -997,6 +1002,7 @@
           positionOrder: sanitizeFiniteNumber(target.positionOrder, 0),
           collapsed: Boolean(target.collapsed)
         })),
+        newTargetDistanceValue: sanitizeFiniteNumber(state.newTargetDistanceValue, 7),
         spacingMode: state.spacingMode === "custom" ? "custom" : "equal",
         customSpacingsIn: state.customSpacingsIn.map((gap) => sanitizeFiniteNumber(gap, 36)),
         backgroundMode: STAGE_BACKGROUNDS[state.backgroundMode] ? state.backgroundMode : "blank"
@@ -1030,6 +1036,7 @@
           positionOrder: sanitizeFiniteNumber(target && target.positionOrder, index),
           collapsed: Boolean(target && target.collapsed)
         })) : [],
+        newTargetDistanceValue: sanitizeFiniteNumber(source.newTargetDistanceValue, defaults.newTargetDistanceValue),
         spacingMode: source.spacingMode === "custom" ? "custom" : "equal",
         customSpacingsIn: Array.isArray(source.customSpacingsIn)
           ? source.customSpacingsIn.map((gap) => sanitizeFiniteNumber(gap, 36))
@@ -1065,6 +1072,7 @@
       const nextState = normalizeImportedAppState(rawState);
       state.calibration = nextState.calibration;
       state.targets = nextState.targets;
+      state.newTargetDistanceValue = nextState.newTargetDistanceValue;
       state.spacingMode = nextState.spacingMode;
       state.customSpacingsIn = nextState.customSpacingsIn;
       state.backgroundMode = nextState.backgroundMode;
@@ -1183,7 +1191,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.16",
+        version: "1.1.17",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1224,7 +1232,7 @@
       }
       const presetMap = readPresetMap();
       presetMap[name] = {
-        version: "1.1.16",
+        version: "1.1.17",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1254,7 +1262,7 @@
       const copyName = getUniquePresetCopyName(baseName, presetMap);
 
       presetMap[copyName] = {
-        version: "1.1.16",
+        version: "1.1.17",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1308,7 +1316,7 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.16",
+        version: "1.1.17",
         exportedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1421,6 +1429,7 @@
       presetStatus: document.getElementById("presetStatus"),
       addTargetBtn: document.getElementById("addTargetBtn"),
       resetBtn: document.getElementById("resetBtn"),
+      newTargetDistanceValue: document.getElementById("newTargetDistanceValue"),
       updateCalibrationBtn: document.getElementById("updateCalibrationBtn"),
       targetList: document.getElementById("targetList"),
       spacingSection: document.getElementById("spacingSection"),
@@ -1560,7 +1569,7 @@
         id: targetIdCounter++,
         shape: defaults.shape || "USPSA",
         type: defaults.type || "open",
-        distanceValue: defaults.distanceValue ?? defaults.distanceYd ?? 7,
+        distanceValue: defaults.distanceValue ?? defaults.distanceYd ?? state.newTargetDistanceValue ?? 7,
         distanceUnit: defaults.distanceUnit || "yd",
         manualScreenOffsetIn: sanitizeFiniteNumber(defaults.manualScreenOffsetIn, 0),
         positionOrder: sanitizeFiniteNumber(defaults.positionOrder, state.targets.length),
@@ -1902,6 +1911,7 @@
       el.monitorAspectRatio.value = state.calibration.aspectRatio;
       renderResolutionPresetOptions(state.calibration.aspectRatio, state.calibration.resolutionPreset);
       el.backgroundMode.value = state.backgroundMode;
+      el.newTargetDistanceValue.value = state.newTargetDistanceValue;
       renderPresetList(el.savedPresets.value || String(el.presetName.value || "").trim());
 
       renderTargetCards();
@@ -2250,6 +2260,10 @@
     el.updateCalibrationBtn.addEventListener("click", applyCalibrationFromInputs);
     el.addTargetBtn.addEventListener("click", () => addTarget());
     el.resetBtn.addEventListener("click", resetAll);
+    el.newTargetDistanceValue.addEventListener("input", (e) => {
+      state.newTargetDistanceValue = sanitizeFiniteNumber(e.target.value, 7);
+      scheduleSessionSave();
+    });
 
     el.spacingMode.addEventListener("change", (e) => {
       state.spacingMode = e.target.value;
