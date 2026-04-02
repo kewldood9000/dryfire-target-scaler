@@ -261,6 +261,15 @@
       margin: 10px 0;
     }
 
+    .display > .alerts {
+      margin: 0;
+      padding: 10px 12px 0;
+    }
+
+    .display > .alerts:empty {
+      padding: 0;
+    }
+
     .alert {
       border-radius: 8px;
       border: 1px solid;
@@ -287,17 +296,17 @@
       box-shadow: var(--shadow);
       background: linear-gradient(180deg, #2b2d31 0%, #1e1f22 100%);
       display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      grid-template-rows: auto auto auto minmax(0, 1fr) auto;
       height: calc(100vh - 32px);
       overflow: hidden;
     }
 
     .display-calibration {
-      padding: 8px 12px;
+      padding: 6px 12px 4px;
       border-bottom: 1px solid var(--line);
       background: rgba(35, 36, 40, 0.96);
       display: grid;
-      gap: 6px;
+      gap: 4px;
     }
 
     .display-calibration-head,
@@ -316,7 +325,7 @@
 
     .display-calibration-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+      grid-template-columns: repeat(4, minmax(0, 0.56fr)) minmax(160px, 0.8fr) auto;
       gap: 8px;
       align-items: end;
     }
@@ -512,8 +521,9 @@
 
     .display-presets-grid {
       display: grid;
-      grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr);
+      grid-template-columns: minmax(260px, 1fr) auto;
       gap: 8px;
+      align-items: end;
     }
 
     .display-calibration .hint,
@@ -538,8 +548,12 @@
     .inline-calibration-action {
       align-self: end;
       white-space: nowrap;
-      padding: 6px 10px;
+      padding: 6px 9px;
       font-size: 0.84rem;
+    }
+
+    .calibration-action-row {
+      align-self: end;
     }
 
     .empty-note {
@@ -592,7 +606,7 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.51</p>
+      <p class="version">Ver. 1.1.70</p>
 
       <section class="section stack-section" aria-labelledby="new-target-title">
         <h2 id="new-target-title">New Target</h2>
@@ -643,13 +657,12 @@
         </div>
       </section>
 
-      <div id="alerts" class="alerts" aria-live="polite"></div>
     </aside>
 
     <section class="display" aria-label="Target Display">
       <section class="display-calibration" aria-labelledby="calibration-title">
         <div class="display-calibration-head">
-          <h2 id="calibration-title">Calibration</h2>
+          <h2 id="calibration-title">Monitor Calibration</h2>
         </div>
         <div class="display-calibration-grid">
           <label class="compact-label">
@@ -671,7 +684,19 @@
             <span class="compact-field-label">Resolution Preset</span>
             <select id="resolutionPreset"></select>
           </label>
-          <button id="updateCalibrationBtn" class="btn primary inline-calibration-action" type="button">Update Calibration</button>
+          <label class="compact-label">
+            <span class="compact-field-label">Saved Calibration</span>
+            <select id="savedCalibrationPresets">
+              <option value="">Select a monitor calibration preset</option>
+            </select>
+          </label>
+          <div class="row compact-action-row calibration-action-row">
+            <button id="saveCalibrationPresetBtn" class="btn primary inline-calibration-action" type="button">Save</button>
+            <button id="deleteCalibrationPresetBtn" class="btn warn inline-calibration-action" type="button">Delete</button>
+            <button id="exportCalibrationPresetBtn" class="btn inline-calibration-action" type="button">Export</button>
+            <button id="importCalibrationPresetBtn" class="btn inline-calibration-action" type="button">Import</button>
+            <input id="importCalibrationPresetFile" class="hidden" type="file" accept="application/json,.json" />
+          </div>
         </div>
         <p class="hint">
           Accuracy depends on correct monitor size, true screen resolution, browser zoom at 100%, and accurate viewing distance.
@@ -693,9 +718,9 @@
               <option value="tron">Tron</option>
             </select>
           </label>
-          <div class="display-meta" id="metaReadout"></div>
         </div>
       </div>
+      <div id="alerts" class="alerts" aria-live="polite"></div>
       <div class="stage-wrap">
         <div class="stage" id="stage">
           <div id="stageTargetLayer" class="stage-target-layer"></div>
@@ -707,32 +732,26 @@
       <div class="display-foot">
         <section class="display-presets" aria-labelledby="presets-title">
           <div class="display-presets-head">
-            <h2 id="presets-title">Presets</h2>
+            <h2 id="presets-title">Target Presets</h2>
           </div>
           <div class="display-presets-grid">
             <label class="compact-label">
-              <span class="compact-field-label">Preset Name</span>
-              <input id="presetName" type="text" maxlength="60" placeholder="Example: 3 Target Drill" />
-            </label>
-            <label class="compact-label">
               <span class="compact-field-label">Saved Presets</span>
               <select id="savedPresets">
-                <option value="">Select a preset</option>
+                <option value="">Select a target array preset</option>
               </select>
             </label>
-          </div>
-          <div class="row compact-action-row" style="margin-top:4px;">
-            <button id="savePresetBtn" class="btn primary" type="button">Save</button>
-            <button id="savePresetCopyBtn" class="btn" type="button">Save As Copy</button>
-            <button id="loadPresetBtn" class="btn" type="button">Load</button>
-            <button id="deletePresetBtn" class="btn warn" type="button">Delete</button>
-            <button id="exportPresetBtn" class="btn" type="button">Export JSON</button>
-            <button id="importPresetBtn" class="btn" type="button">Import JSON</button>
-            <input id="importPresetFile" class="hidden" type="file" accept="application/json,.json" />
+            <div class="row compact-action-row">
+              <button id="savePresetBtn" class="btn primary" type="button">Save</button>
+              <button id="deletePresetBtn" class="btn warn" type="button">Delete</button>
+              <button id="exportPresetBtn" class="btn" type="button">Export</button>
+              <button id="importPresetBtn" class="btn" type="button">Import</button>
+              <input id="importPresetFile" class="hidden" type="file" accept="application/json,.json" />
+            </div>
           </div>
           <div id="presetStatus" class="status-note" aria-live="polite"></div>
           <p class="hint">
-            Saves stay on this browser with localStorage. Export JSON to move presets between devices.
+            Saves stay on this browser with localStorage. Export to move presets between devices.
           </p>
         </section>
       </div>
@@ -765,6 +784,7 @@
     };
     const TARGET_SIZE_STORAGE_KEY = "dryfire_target_real_world_sizes_v1";
     const PRESET_STORAGE_KEY = "dryfire_presets_v1";
+    const CALIBRATION_PRESET_STORAGE_KEY = "dryfire_calibration_presets_v1";
     const SESSION_STORAGE_KEY = "dryfire_recent_session_v1";
     const TARGET_ROW_VERTICAL_OFFSET_RATIO = 0.08;
     const TARGET_FAMILY_BY_SHAPE = {
@@ -910,6 +930,7 @@
     let sessionSaveTimer = null;
     let activeTargetDrag = null;
     let lastRenderMetrics = null;
+    let suppressCalibrationPresetReset = false;
 
     // =====================
     // Helpers / Math
@@ -1441,6 +1462,23 @@
       };
     }
 
+    function getSerializableTargetPresetState() {
+      return {
+        targets: state.targets.map((target) => ({
+          id: sanitizeFiniteNumber(target.id, 0),
+          shape: TARGET_DEFS[target.shape] ? target.shape : "USPSA",
+          type: String(target.type || "open"),
+          distanceValue: sanitizeFiniteNumber(target.distanceValue, 7),
+          distanceUnit: target.distanceUnit === "m" ? "m" : "yd",
+          manualScreenOffsetIn: sanitizeFiniteNumber(target.manualScreenOffsetIn, 0),
+          manualScreenXIn: Number.isFinite(toNumber(target.manualScreenXIn)) ? toNumber(target.manualScreenXIn) : null,
+          positionOrder: sanitizeFiniteNumber(target.positionOrder, 0),
+          collapsed: Boolean(target.collapsed)
+        })),
+        customSpacingsIn: state.customSpacingsIn.map((gap) => sanitizeFiniteNumber(gap, 36))
+      };
+    }
+
     function normalizeImportedAppState(rawState) {
       const defaults = getDefaultAppState();
       const source = rawState && typeof rawState === "object" ? rawState : {};
@@ -1491,6 +1529,36 @@
       return normalized;
     }
 
+    function normalizeImportedTargetPresetState(rawState) {
+      const source = rawState && typeof rawState === "object" ? rawState : {};
+      const normalized = {
+        targets: Array.isArray(source.targets) ? source.targets.map((target, index) => ({
+          id: sanitizeFiniteNumber(target && target.id, index + 1),
+          shape: target && TARGET_DEFS[target.shape] ? target.shape : "USPSA",
+          type: String(target && target.type ? target.type : "open"),
+          distanceValue: sanitizeFiniteNumber(target && target.distanceValue, 7),
+          distanceUnit: target && target.distanceUnit === "m" ? "m" : "yd",
+          manualScreenOffsetIn: sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0),
+          manualScreenXIn: Number.isFinite(toNumber(target && target.manualScreenXIn)) ? toNumber(target && target.manualScreenXIn) : null,
+          positionOrder: sanitizeFiniteNumber(target && target.positionOrder, index),
+          collapsed: Boolean(target && target.collapsed)
+        })) : [],
+        customSpacingsIn: Array.isArray(source.customSpacingsIn)
+          ? source.customSpacingsIn.map((gap) => sanitizeFiniteNumber(gap, 36))
+          : []
+      };
+
+      normalized.targets.forEach((target) => normalizeTargetTypeForShape(target));
+      normalized.targets
+        .slice()
+        .sort((a, b) => sanitizeFiniteNumber(a.positionOrder, 0) - sanitizeFiniteNumber(b.positionOrder, 0))
+        .forEach((target, index) => {
+          target.positionOrder = index;
+        });
+
+      return normalized;
+    }
+
     function applyImportedTargetSizes(realWorldTargetSizes) {
       if (!realWorldTargetSizes || typeof realWorldTargetSizes !== "object") return;
       Object.entries(realWorldTargetSizes).forEach(([shape, dims]) => {
@@ -1517,6 +1585,25 @@
       state.customSpacingsIn = nextState.customSpacingsIn;
       state.spacingCollapsed = nextState.spacingCollapsed;
       state.backgroundMode = nextState.backgroundMode;
+      normalizeTargetPositionOrders();
+      syncCustomSpacingLength();
+      targetIdCounter = Math.max(1, ...state.targets.map((target) => sanitizeFiniteNumber(target.id, 0) + 1));
+      renderUI();
+      applySelectedStageBackground();
+      recalcAndRender();
+      if (persistSession) {
+        scheduleSessionSave();
+      }
+      if (statusMessage) {
+        setPresetStatus(statusMessage);
+      }
+    }
+
+    function applyTargetPresetState(rawState, options = {}) {
+      const { persistSession = true, statusMessage = "" } = options;
+      const nextState = normalizeImportedTargetPresetState(rawState);
+      state.targets = nextState.targets;
+      state.customSpacingsIn = nextState.customSpacingsIn;
       normalizeTargetPositionOrders();
       syncCustomSpacingLength();
       targetIdCounter = Math.max(1, ...state.targets.map((target) => sanitizeFiniteNumber(target.id, 0) + 1));
@@ -1590,6 +1677,42 @@
       el.presetStatus.classList.toggle("error", Boolean(message) && isError);
     }
 
+    function readCalibrationPresetMap() {
+      try {
+        const raw = localStorage.getItem(CALIBRATION_PRESET_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === "object" ? parsed : {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    function writeCalibrationPresetMap(presetMap) {
+      localStorage.setItem(CALIBRATION_PRESET_STORAGE_KEY, JSON.stringify(presetMap));
+    }
+
+    function renderCalibrationPresetList(selectedName = "") {
+      const presets = Object.keys(readCalibrationPresetMap()).sort((a, b) => a.localeCompare(b));
+      const fragment = document.createDocumentFragment();
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = presets.length ? "Select a monitor calibration preset" : "No saved monitor calibration presets";
+      fragment.appendChild(placeholder);
+
+      presets.forEach((name) => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        if (name === selectedName) option.selected = true;
+        fragment.appendChild(option);
+      });
+
+      el.savedCalibrationPresets.replaceChildren(fragment);
+      el.savedCalibrationPresets.value = selectedName && presets.includes(selectedName) ? selectedName : "";
+    }
+
     function readPresetMap() {
       try {
         const raw = localStorage.getItem(PRESET_STORAGE_KEY);
@@ -1611,7 +1734,7 @@
 
       const placeholder = document.createElement("option");
       placeholder.value = "";
-      placeholder.textContent = presets.length ? "Select a preset" : "No saved presets";
+      placeholder.textContent = presets.length ? "Select a target array preset" : "No saved target array presets";
       fragment.appendChild(placeholder);
 
       presets.forEach((name) => {
@@ -1632,7 +1755,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.51",
+        version: "1.1.70",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1665,78 +1788,116 @@
       return false;
     }
 
-    function saveNamedPreset() {
-      const name = String(el.presetName.value || "").trim();
-      if (!name) {
-        setPresetStatus("Enter a preset name before saving.", true);
+    function getCalibrationFromInputs() {
+      const aspectRatio = el.monitorAspectRatio.value;
+      const preset = el.resolutionPreset.value;
+      const parsed = parseResolutionValue(preset);
+      return {
+        viewDistanceIn: toNumber(el.viewDistanceIn.value),
+        monitorDiagonalIn: toNumber(el.monitorDiagonalIn.value),
+        aspectRatio,
+        resolutionPreset: preset,
+        resWidthPx: parsed.width,
+        resHeightPx: parsed.height
+      };
+    }
+
+    function fillCalibrationInputs(calibration) {
+      if (!calibration) return;
+      el.viewDistanceIn.value = calibration.viewDistanceIn ?? "";
+      el.monitorDiagonalIn.value = calibration.monitorDiagonalIn ?? "";
+      el.monitorAspectRatio.value = calibration.aspectRatio || "16:9";
+      renderResolutionPresetOptions(el.monitorAspectRatio.value, calibration.resolutionPreset || "");
+      if (calibration.resolutionPreset) {
+        el.resolutionPreset.value = calibration.resolutionPreset;
+      }
+    }
+
+    function saveCurrentCalibrationPreset() {
+      const promptName = el.savedCalibrationPresets.value || "";
+      const name = window.prompt("Enter a monitor calibration preset name:", promptName);
+      const trimmedName = String(name || "").trim();
+      if (!trimmedName) return;
+      const calibrationPresetMap = readCalibrationPresetMap();
+      if (calibrationPresetMap[trimmedName] && !window.confirm(`Overwrite monitor calibration preset "${trimmedName}"?`)) {
         return;
       }
-      const presetMap = readPresetMap();
-      presetMap[name] = {
-        version: "1.1.51",
+      calibrationPresetMap[trimmedName] = {
+        version: "1.1.70",
         savedAt: new Date().toISOString(),
-        appState: getSerializableAppState(),
-        realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
+        calibration: getCalibrationFromInputs()
       };
-      writePresetMap(presetMap);
-      renderPresetList(name);
-      el.presetName.value = name;
-      setPresetStatus(`Saved preset "${name}".`);
+      writeCalibrationPresetMap(calibrationPresetMap);
+      renderCalibrationPresetList(trimmedName);
+      setPresetStatus(`Saved monitor calibration preset "${trimmedName}".`);
       scheduleSessionSave();
     }
 
-    function getUniquePresetCopyName(baseName, presetMap) {
-      const trimmedBase = String(baseName || "").trim() || "Preset";
-      const firstCopyName = `${trimmedBase} Copy`;
-      if (!presetMap[firstCopyName]) return firstCopyName;
-
-      let suffix = 2;
-      while (presetMap[`${trimmedBase} Copy ${suffix}`]) {
-        suffix += 1;
+    function deleteSelectedCalibrationPreset() {
+      const name = el.savedCalibrationPresets.value;
+      if (!name) {
+        setPresetStatus("Select a monitor calibration preset to delete.", true);
+        return;
       }
-      return `${trimmedBase} Copy ${suffix}`;
+      const calibrationPresetMap = readCalibrationPresetMap();
+      if (!calibrationPresetMap[name]) {
+        renderCalibrationPresetList();
+        setPresetStatus(`Monitor calibration preset "${name}" was not found.`, true);
+        return;
+      }
+      delete calibrationPresetMap[name];
+      writeCalibrationPresetMap(calibrationPresetMap);
+      renderCalibrationPresetList();
+      setPresetStatus(`Deleted monitor calibration preset "${name}".`);
+      scheduleSessionSave();
     }
 
-    function savePresetAsCopy() {
-      const presetMap = readPresetMap();
-      const baseName = String(el.presetName.value || el.savedPresets.value || "").trim() || "Preset";
-      const copyName = getUniquePresetCopyName(baseName, presetMap);
+    function resetSelectedCalibrationPreset() {
+      if (suppressCalibrationPresetReset) return;
+      if (el.savedCalibrationPresets.value) {
+        renderCalibrationPresetList();
+      }
+    }
 
-      presetMap[copyName] = {
-        version: "1.1.51",
+    function saveNamedPreset() {
+      const promptName = el.savedPresets.value || "Preset";
+      const name = window.prompt("Enter a target array preset name:", promptName);
+      const trimmedName = String(name || "").trim();
+      if (!trimmedName) return;
+      const presetMap = readPresetMap();
+      if (presetMap[trimmedName] && !window.confirm(`Overwrite target array preset "${trimmedName}"?`)) {
+        return;
+      }
+      presetMap[trimmedName] = {
+        version: "1.1.70",
         savedAt: new Date().toISOString(),
-        appState: getSerializableAppState(),
-        realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
+        targetPresetState: getSerializableTargetPresetState()
       };
       writePresetMap(presetMap);
-      renderPresetList(copyName);
-      el.presetName.value = copyName;
-      setPresetStatus(`Saved preset copy "${copyName}".`);
+      renderPresetList(trimmedName);
+      setPresetStatus(`Saved preset "${trimmedName}".`);
       scheduleSessionSave();
     }
 
     function loadSelectedPreset() {
-      const name = el.savedPresets.value || String(el.presetName.value || "").trim();
+      const name = el.savedPresets.value;
       if (!name) {
         setPresetStatus("Select a preset to load.", true);
         return;
       }
       const preset = readPresetMap()[name];
-      if (!preset || !preset.appState) {
+      const presetState = preset && (preset.targetPresetState || preset.appState || preset);
+      if (!preset || !presetState) {
         setPresetStatus(`Preset "${name}" was not found.`, true);
         renderPresetList();
         return;
       }
-      if (preset.realWorldTargetSizes) {
-        applyImportedTargetSizes(preset.realWorldTargetSizes);
-      }
-      el.presetName.value = name;
       renderPresetList(name);
-      applyAppState(preset.appState, { statusMessage: `Loaded preset "${name}".` });
+      applyTargetPresetState(presetState, { statusMessage: `Loaded preset "${name}".` });
     }
 
     function deleteSelectedPreset() {
-      const name = el.savedPresets.value || String(el.presetName.value || "").trim();
+      const name = el.savedPresets.value;
       if (!name) {
         setPresetStatus("Select a preset to delete.", true);
         return;
@@ -1749,7 +1910,6 @@
       }
       delete presetMap[name];
       writePresetMap(presetMap);
-      el.presetName.value = "";
       renderPresetList();
       setPresetStatus(`Deleted preset "${name}".`);
       scheduleSessionSave();
@@ -1757,30 +1917,97 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.51",
+        version: "1.1.70",
         exportedAt: new Date().toISOString(),
-        appState: getSerializableAppState(),
-        realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
+        targetPresetState: getSerializableTargetPresetState()
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, "0");
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const year = String(now.getFullYear());
-      const stamp = `${day}${month}${year}`;
-      const presetName = String(el.presetName.value || el.savedPresets.value || "Unnamed").trim() || "Unnamed";
+      const presetName = String(el.savedPresets.value || "Unnamed").trim() || "Unnamed";
       const safePresetName = presetName
         .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
         .replace(/\s+/g, "_");
       link.href = url;
-      link.download = `Dryfire_Preset_${safePresetName}_${stamp}.json`;
+      link.download = `DFTV_Targetarray_${safePresetName}.json`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
       setPresetStatus("Exported current configuration as JSON.");
+    }
+
+    function exportCurrentCalibrationPreset() {
+      const selectedName = String(el.savedCalibrationPresets.value || "").trim();
+      const calibration = getCalibrationFromInputs();
+      const payload = {
+        version: "1.1.70",
+        exportedAt: new Date().toISOString(),
+        presetName: selectedName || "Current Calibration",
+        calibration
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeName = String(selectedName || "Current_Calibration")
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+        .replace(/\s+/g, "_");
+      link.href = url;
+      link.download = `DFTV_Calibration_${safeName}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setPresetStatus("Exported monitor calibration.");
+    }
+
+    function importCalibrationPresetFromFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result || ""));
+          const calibration = parsed && parsed.calibration ? parsed.calibration : parsed;
+          if (!calibration || typeof calibration !== "object") {
+            throw new Error("Invalid calibration payload");
+          }
+          const suggestedName = String(parsed && parsed.presetName ? parsed.presetName : file.name.replace(/\.[^.]+$/, "")) || "";
+          const enteredName = window.prompt("Enter a monitor calibration preset name:", suggestedName);
+          const trimmedName = String(enteredName || "").trim();
+          if (!trimmedName) return;
+          const calibrationPresetMap = readCalibrationPresetMap();
+          if (calibrationPresetMap[trimmedName] && !window.confirm(`Overwrite monitor calibration preset "${trimmedName}"?`)) {
+            return;
+          }
+          const normalizedCalibration = {
+            viewDistanceIn: sanitizeFiniteNumber(calibration.viewDistanceIn, state.calibration.viewDistanceIn),
+            monitorDiagonalIn: sanitizeFiniteNumber(calibration.monitorDiagonalIn, state.calibration.monitorDiagonalIn),
+            aspectRatio: RESOLUTION_PRESETS[calibration.aspectRatio] ? calibration.aspectRatio : state.calibration.aspectRatio,
+            resolutionPreset: String(calibration.resolutionPreset || state.calibration.resolutionPreset),
+            resWidthPx: sanitizeFiniteNumber(calibration.resWidthPx, state.calibration.resWidthPx),
+            resHeightPx: sanitizeFiniteNumber(calibration.resHeightPx, state.calibration.resHeightPx)
+          };
+          calibrationPresetMap[trimmedName] = {
+            version: "1.1.70",
+            savedAt: new Date().toISOString(),
+            calibration: normalizedCalibration
+          };
+          writeCalibrationPresetMap(calibrationPresetMap);
+          suppressCalibrationPresetReset = true;
+          fillCalibrationInputs(normalizedCalibration);
+          renderCalibrationPresetList(trimmedName);
+          applyCalibrationFromInputs({ preserveSelectedPreset: true });
+          suppressCalibrationPresetReset = false;
+          setPresetStatus(`Imported monitor calibration preset "${trimmedName}".`);
+          scheduleSessionSave();
+        } catch (_) {
+          setPresetStatus("Monitor calibration import failed. Choose a valid JSON export.", true);
+        }
+      };
+      reader.onerror = () => {
+        setPresetStatus("Monitor calibration import failed. The file could not be read.", true);
+      };
+      reader.readAsText(file);
     }
 
     function importConfigFromFile(file) {
@@ -1789,11 +2016,8 @@
       reader.onload = () => {
         try {
           const parsed = JSON.parse(String(reader.result || ""));
-          const appState = parsed && parsed.appState ? parsed.appState : parsed;
-          if (parsed.realWorldTargetSizes) {
-            applyImportedTargetSizes(parsed.realWorldTargetSizes);
-          }
-          applyAppState(appState, { statusMessage: `Imported configuration from ${file.name}.` });
+          const presetState = parsed && (parsed.targetPresetState || parsed.appState) ? (parsed.targetPresetState || parsed.appState) : parsed;
+          applyTargetPresetState(presetState, { statusMessage: `Imported configuration from ${file.name}.` });
         } catch (_) {
           setPresetStatus("Import failed. Choose a valid JSON export.", true);
         }
@@ -1996,11 +2220,14 @@
       monitorDiagonalIn: document.getElementById("monitorDiagonalIn"),
       monitorAspectRatio: document.getElementById("monitorAspectRatio"),
       resolutionPreset: document.getElementById("resolutionPreset"),
-      presetName: document.getElementById("presetName"),
+      savedCalibrationPresets: document.getElementById("savedCalibrationPresets"),
+      saveCalibrationPresetBtn: document.getElementById("saveCalibrationPresetBtn"),
+      deleteCalibrationPresetBtn: document.getElementById("deleteCalibrationPresetBtn"),
+      exportCalibrationPresetBtn: document.getElementById("exportCalibrationPresetBtn"),
+      importCalibrationPresetBtn: document.getElementById("importCalibrationPresetBtn"),
+      importCalibrationPresetFile: document.getElementById("importCalibrationPresetFile"),
       savedPresets: document.getElementById("savedPresets"),
       savePresetBtn: document.getElementById("savePresetBtn"),
-      savePresetCopyBtn: document.getElementById("savePresetCopyBtn"),
-      loadPresetBtn: document.getElementById("loadPresetBtn"),
       deletePresetBtn: document.getElementById("deletePresetBtn"),
       exportPresetBtn: document.getElementById("exportPresetBtn"),
       importPresetBtn: document.getElementById("importPresetBtn"),
@@ -2014,7 +2241,6 @@
       newTargetType: document.getElementById("newTargetType"),
       newTargetDistanceValue: document.getElementById("newTargetDistanceValue"),
       newTargetDistanceUnit: document.getElementById("newTargetDistanceUnit"),
-      updateCalibrationBtn: document.getElementById("updateCalibrationBtn"),
       targetList: document.getElementById("targetList"),
       spacingSection: document.getElementById("spacingSection"),
       spacingHead: document.getElementById("spacingHead"),
@@ -2027,7 +2253,6 @@
       stage: document.getElementById("stage"),
       stageTargetLayer: document.getElementById("stageTargetLayer"),
       alerts: document.getElementById("alerts"),
-      metaReadout: document.getElementById("metaReadout"),
       emptyNote: document.getElementById("emptyNote")
     };
 
@@ -2295,11 +2520,10 @@
 
         const head = document.createElement("div");
         head.className = "target-head";
-        head.title = target.collapsed ? "Click to open target card" : "";
-        head.setAttribute("aria-label", target.collapsed ? "Click to open target card" : getTargetDisplayLabel(target, displayLabelById));
+        head.title = target.collapsed ? "Click to open target card" : "Click to minimize target card";
+        head.setAttribute("aria-label", target.collapsed ? "Click to open target card" : "Click to minimize target card");
         head.addEventListener("click", () => {
-          if (!target.collapsed) return;
-          target.collapsed = false;
+          target.collapsed = !target.collapsed;
           renderUI();
           scheduleSessionSave();
         });
@@ -2307,7 +2531,7 @@
         const title = document.createElement("div");
         title.className = "target-title";
         title.textContent = getTargetDisplayLabel(target, displayLabelById);
-        title.title = target.collapsed ? "Click to open target card" : "";
+        title.title = target.collapsed ? "Click to open target card" : "Click to minimize target card";
 
         const actions = document.createElement("div");
         actions.className = "target-head-actions";
@@ -2499,8 +2723,8 @@
 
       el.spacingBody.classList.toggle("hidden", Boolean(state.spacingCollapsed));
       el.spacingSubtitle.classList.toggle("hidden", Boolean(state.spacingCollapsed));
-      el.spacingHead.title = state.spacingCollapsed ? "Click to open target spacing" : "";
-      el.spacingHead.setAttribute("aria-label", state.spacingCollapsed ? "Click to open target spacing" : "Target spacing");
+      el.spacingHead.title = state.spacingCollapsed ? "Click to open target spacing" : "Click to minimize target spacing";
+      el.spacingHead.setAttribute("aria-label", state.spacingCollapsed ? "Click to open target spacing" : "Click to minimize target spacing");
       el.spacingToggleBtn.textContent = state.spacingCollapsed ? "□" : "−";
       el.spacingToggleBtn.title = state.spacingCollapsed ? "Expand target spacing" : "Minimize target spacing";
       el.spacingToggleBtn.setAttribute("aria-label", el.spacingToggleBtn.title);
@@ -2635,6 +2859,7 @@
       el.monitorDiagonalIn.value = state.calibration.monitorDiagonalIn;
       el.monitorAspectRatio.value = state.calibration.aspectRatio;
       renderResolutionPresetOptions(state.calibration.aspectRatio, state.calibration.resolutionPreset);
+      renderCalibrationPresetList(el.savedCalibrationPresets ? el.savedCalibrationPresets.value : "");
       el.backgroundMode.value = state.backgroundMode;
       el.newTargetShape.replaceChildren();
       TARGET_SHAPE_OPTIONS.forEach((shape) => {
@@ -2654,28 +2879,21 @@
         if (unit.value === state.newTargetDistanceUnit) option.selected = true;
         el.newTargetDistanceUnit.appendChild(option);
       });
-      renderPresetList(el.savedPresets.value || String(el.presetName.value || "").trim());
+      renderPresetList(el.savedPresets.value || "");
 
       renderTargetCards();
       renderSpacingControls();
     }
 
-    function applyCalibrationFromInputs() {
-      const aspectRatio = el.monitorAspectRatio.value;
-      const preset = el.resolutionPreset.value;
-      const parsed = parseResolutionValue(preset);
-      state.calibration = {
-        viewDistanceIn: toNumber(el.viewDistanceIn.value),
-        monitorDiagonalIn: toNumber(el.monitorDiagonalIn.value),
-        aspectRatio,
-        resolutionPreset: preset,
-        resWidthPx: parsed.width,
-        resHeightPx: parsed.height
-      };
+    function applyCalibrationFromInputs(options = {}) {
+      const { preserveSelectedPreset = false } = options;
+      state.calibration = getCalibrationFromInputs();
       setAddTargetStatus("");
+      if (!preserveSelectedPreset) {
+        resetSelectedCalibrationPreset();
+      }
       recalcAndRender();
       scheduleSessionSave();
-      setPresetStatus("Calibration updated.");
     }
 
     function beginTargetDrag(pointerEvent, holder, targetIndex, baseXPx, targetWidthPx) {
@@ -2800,13 +3018,11 @@
 
       if (state.targets.length === 0) {
         el.emptyNote.classList.remove("hidden");
-        el.metaReadout.innerHTML = "";
         return;
       }
       el.emptyNote.classList.add("hidden");
 
       if (errors.length) {
-        el.metaReadout.innerHTML = "<span>Fix validation errors to render targets.</span>";
         return;
       }
 
@@ -2872,7 +3088,7 @@
         tp.angleRad = Math.atan(tp.xInOnScreen / viewDistanceIn);
       });
       if (equalLayout.gapPx < 0) {
-        warnings.push("Equal spacing requires more width than available; computed equal gaps are negative, so targets will overlap/overflow.");
+        warnings.push("Targets are overlapping due to reduced window size. Increase the window size or remove some targets.");
       }
 
       targetProjected.forEach((tp) => {
@@ -2950,11 +3166,6 @@
 
       renderAlerts(errors, warnings);
 
-      el.metaReadout.innerHTML = `
-        <span>Pixels per inch: <strong>${round(ppi, 2)}</strong></span>
-        <span>Spacing: <strong>Manual + Snap</strong></span>
-        <span>Targets: <strong>${state.targets.length}</strong></span>
-      `;
     }
 
     function renderAlerts(errors, warnings) {
@@ -2982,6 +3193,41 @@
       const nextAspect = el.monitorAspectRatio.value;
       const currentPreset = el.resolutionPreset.value;
       renderResolutionPresetOptions(nextAspect, currentPreset);
+      applyCalibrationFromInputs();
+    });
+
+    el.viewDistanceIn.addEventListener("input", () => applyCalibrationFromInputs());
+    el.monitorDiagonalIn.addEventListener("input", () => applyCalibrationFromInputs());
+    el.resolutionPreset.addEventListener("change", () => applyCalibrationFromInputs());
+
+    el.savedCalibrationPresets.addEventListener("change", (e) => {
+      const selectedName = e.target.value;
+      if (!selectedName) {
+        setPresetStatus("");
+        return;
+      }
+      const preset = readCalibrationPresetMap()[selectedName];
+      if (!preset || !preset.calibration) {
+        renderCalibrationPresetList();
+        setPresetStatus(`Monitor calibration preset "${selectedName}" was not found.`, true);
+        return;
+      }
+      suppressCalibrationPresetReset = true;
+      fillCalibrationInputs(preset.calibration);
+      renderCalibrationPresetList(selectedName);
+      applyCalibrationFromInputs({ preserveSelectedPreset: true });
+      suppressCalibrationPresetReset = false;
+      setPresetStatus(`Applied monitor calibration preset "${selectedName}".`);
+    });
+
+    el.saveCalibrationPresetBtn.addEventListener("click", saveCurrentCalibrationPreset);
+    el.deleteCalibrationPresetBtn.addEventListener("click", deleteSelectedCalibrationPreset);
+    el.exportCalibrationPresetBtn.addEventListener("click", exportCurrentCalibrationPreset);
+    el.importCalibrationPresetBtn.addEventListener("click", () => el.importCalibrationPresetFile.click());
+    el.importCalibrationPresetFile.addEventListener("change", (e) => {
+      const [file] = e.target.files || [];
+      importCalibrationPresetFromFile(file);
+      e.target.value = "";
     });
 
     el.backgroundMode.addEventListener("change", (e) => {
@@ -2992,15 +3238,14 @@
 
     el.savedPresets.addEventListener("change", (e) => {
       const selectedName = e.target.value;
-      if (selectedName) {
-        el.presetName.value = selectedName;
+      if (!selectedName) {
+        setPresetStatus("");
+        return;
       }
-      setPresetStatus("");
+      loadSelectedPreset();
     });
 
     el.savePresetBtn.addEventListener("click", saveNamedPreset);
-    el.savePresetCopyBtn.addEventListener("click", savePresetAsCopy);
-    el.loadPresetBtn.addEventListener("click", loadSelectedPreset);
     el.deletePresetBtn.addEventListener("click", deleteSelectedPreset);
     el.exportPresetBtn.addEventListener("click", exportCurrentConfig);
     el.importPresetBtn.addEventListener("click", () => el.importPresetFile.click());
@@ -3024,7 +3269,6 @@
       scheduleSessionSave();
     });
 
-    el.updateCalibrationBtn.addEventListener("click", applyCalibrationFromInputs);
     el.addTargetBtn.addEventListener("click", () => addTarget());
     el.resetBtn.addEventListener("click", resetAll);
     el.minimizeAllTargetsBtn.addEventListener("click", minimizeAllTargets);
@@ -3040,8 +3284,7 @@
     });
 
     el.spacingHead.addEventListener("click", () => {
-      if (!state.spacingCollapsed) return;
-      toggleSpacingSection(false);
+      toggleSpacingSection();
     });
     el.spacingToggleBtn.addEventListener("click", (e) => {
       e.stopPropagation();
