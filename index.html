@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dry-Fire Target Visualizer</title>
+  <link rel="icon" type="image/png" href="images/favicon/favicon.png" />
   <style>
     :root {
       --bg: #1e1f22;
@@ -63,10 +64,32 @@
     }
 
     .version {
-      margin: 0 0 10px;
+      margin: 0 0 4px;
       color: var(--text);
       font-size: 0.88rem;
       text-align: center;
+    }
+
+    .byline {
+      margin: 0 0 4px;
+      color: var(--text);
+      font-size: 0.88rem;
+      text-align: center;
+    }
+
+    .repo-link {
+      margin: 0 0 10px;
+      text-align: center;
+      font-size: 0.8rem;
+    }
+
+    .repo-link a {
+      color: #8ab4ff;
+      text-decoration: none;
+    }
+
+    .repo-link a:hover {
+      text-decoration: underline;
     }
 
     .section {
@@ -100,6 +123,13 @@
 
     .section-head.collapsible {
       cursor: pointer;
+    }
+
+    #targetSettingsHead,
+    #spacingHead {
+      user-select: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
     }
 
     .section-body {
@@ -606,7 +636,11 @@
   <main class="app">
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
-      <p class="version">Ver. 1.1.70</p>
+      <p class="byline">By: Andy Ta</p>
+      <p class="version">Ver. 1.2.1</p>
+      <p class="repo-link">
+        <a href="https://github.com/kewldood9000/dryfire-target-scaler" target="_blank" rel="noopener noreferrer">Open GitHub Repo</a>
+      </p>
 
       <section class="section stack-section" aria-labelledby="new-target-title">
         <h2 id="new-target-title">New Target</h2>
@@ -634,11 +668,11 @@
       </section>
 
       <section class="section stack-section" aria-labelledby="targets-title">
-        <div class="section-head">
+        <div id="targetSettingsHead" class="section-head collapsible" aria-label="Click to toggle all target cards" title="Click to toggle all target cards">
           <div class="section-head-copy">
             <h2 id="targets-title">Target Settings</h2>
           </div>
-          <button id="minimizeAllTargetsBtn" class="btn win" type="button" aria-label="Minimize all target cards" title="Minimize all target cards">−</button>
+          <button id="minimizeAllTargetsBtn" class="btn win" type="button" aria-label="Expand target cards" title="Expand target cards">□</button>
         </div>
         <div id="targetList" aria-live="polite"></div>
       </section>
@@ -1755,7 +1789,7 @@
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.1.70",
+        version: "1.2.1",
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1823,7 +1857,7 @@
         return;
       }
       calibrationPresetMap[trimmedName] = {
-        version: "1.1.70",
+        version: "1.2.1",
         savedAt: new Date().toISOString(),
         calibration: getCalibrationFromInputs()
       };
@@ -1869,7 +1903,7 @@
         return;
       }
       presetMap[trimmedName] = {
-        version: "1.1.70",
+        version: "1.2.1",
         savedAt: new Date().toISOString(),
         targetPresetState: getSerializableTargetPresetState()
       };
@@ -1917,7 +1951,7 @@
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.1.70",
+        version: "1.2.1",
         exportedAt: new Date().toISOString(),
         targetPresetState: getSerializableTargetPresetState()
       };
@@ -1941,7 +1975,7 @@
       const selectedName = String(el.savedCalibrationPresets.value || "").trim();
       const calibration = getCalibrationFromInputs();
       const payload = {
-        version: "1.1.70",
+        version: "1.2.1",
         exportedAt: new Date().toISOString(),
         presetName: selectedName || "Current Calibration",
         calibration
@@ -1988,7 +2022,7 @@
             resHeightPx: sanitizeFiniteNumber(calibration.resHeightPx, state.calibration.resHeightPx)
           };
           calibrationPresetMap[trimmedName] = {
-            version: "1.1.70",
+            version: "1.2.1",
             savedAt: new Date().toISOString(),
             calibration: normalizedCalibration
           };
@@ -2236,6 +2270,7 @@
       addTargetBtn: document.getElementById("addTargetBtn"),
       resetBtn: document.getElementById("resetBtn"),
       addTargetStatus: document.getElementById("addTargetStatus"),
+      targetSettingsHead: document.getElementById("targetSettingsHead"),
       minimizeAllTargetsBtn: document.getElementById("minimizeAllTargetsBtn"),
       newTargetShape: document.getElementById("newTargetShape"),
       newTargetType: document.getElementById("newTargetType"),
@@ -2483,6 +2518,21 @@
       scheduleSessionSave();
     }
 
+    function toggleAllTargets() {
+      if (!state.targets.length) return;
+      const shouldExpandAll = state.targets.every((target) => Boolean(target.collapsed));
+      let didChange = false;
+      state.targets.forEach((target) => {
+        if (Boolean(target.collapsed) !== !shouldExpandAll) {
+          target.collapsed = !shouldExpandAll;
+          didChange = true;
+        }
+      });
+      if (!didChange) return;
+      renderUI();
+      scheduleSessionSave();
+    }
+
     function resetAll() {
       state.targets = [];
       state.spacingMode = "equal";
@@ -2511,6 +2561,11 @@
     function renderTargetCards() {
       const fragment = document.createDocumentFragment();
       const displayLabelById = getTargetDisplayLabelMap();
+      const allTargetsCollapsed = state.targets.length > 0 && state.targets.every((target) => Boolean(target.collapsed));
+
+      el.minimizeAllTargetsBtn.textContent = allTargetsCollapsed ? "□" : "−";
+      el.minimizeAllTargetsBtn.title = allTargetsCollapsed ? "Expand target cards" : "Minimize target cards";
+      el.minimizeAllTargetsBtn.setAttribute("aria-label", el.minimizeAllTargetsBtn.title);
 
       state.targets.forEach((target, index) => {
         normalizeTargetTypeForShape(target);
@@ -2723,8 +2778,8 @@
 
       el.spacingBody.classList.toggle("hidden", Boolean(state.spacingCollapsed));
       el.spacingSubtitle.classList.toggle("hidden", Boolean(state.spacingCollapsed));
-      el.spacingHead.title = state.spacingCollapsed ? "Click to open target spacing" : "Click to minimize target spacing";
-      el.spacingHead.setAttribute("aria-label", state.spacingCollapsed ? "Click to open target spacing" : "Click to minimize target spacing");
+      el.spacingHead.title = "Click to toggle target spacing";
+      el.spacingHead.setAttribute("aria-label", "Click to toggle target spacing");
       el.spacingToggleBtn.textContent = state.spacingCollapsed ? "□" : "−";
       el.spacingToggleBtn.title = state.spacingCollapsed ? "Expand target spacing" : "Minimize target spacing";
       el.spacingToggleBtn.setAttribute("aria-label", el.spacingToggleBtn.title);
@@ -3271,7 +3326,11 @@
 
     el.addTargetBtn.addEventListener("click", () => addTarget());
     el.resetBtn.addEventListener("click", resetAll);
-    el.minimizeAllTargetsBtn.addEventListener("click", minimizeAllTargets);
+    el.targetSettingsHead.addEventListener("click", toggleAllTargets);
+    el.minimizeAllTargetsBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleAllTargets();
+    });
     el.newTargetDistanceValue.addEventListener("input", (e) => {
       state.newTargetDistanceValue = sanitizeFiniteNumber(e.target.value, 7);
       setAddTargetStatus("");
