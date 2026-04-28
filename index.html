@@ -637,7 +637,7 @@
     <aside class="panel" aria-label="Controls">
       <h1>Dry-Fire<br />Target Visualizer</h1>
       <p class="byline">By: Andy Ta</p>
-      <p class="version">Ver. 1.2.1</p>
+      <p class="version">Ver. 1.2.7</p>
       <p class="repo-link">
         <a href="https://github.com/kewldood9000/dryfire-target-scaler" target="_blank" rel="noopener noreferrer">Open GitHub Repo</a>
       </p>
@@ -820,6 +820,7 @@
     const PRESET_STORAGE_KEY = "dryfire_presets_v1";
     const CALIBRATION_PRESET_STORAGE_KEY = "dryfire_calibration_presets_v1";
     const SESSION_STORAGE_KEY = "dryfire_recent_session_v1";
+    const APP_VERSION = "1.2.7";
     const TARGET_ROW_VERTICAL_OFFSET_RATIO = 0.08;
     const TARGET_FAMILY_BY_SHAPE = {
       USPSA: "uspsa",
@@ -847,7 +848,8 @@
         { value: "halfZebraRight", label: "Half-Zebra (Right)", assetKey: "Half-Zebra_Right" },
         { value: "peekerLeft", label: "Peeker (Left)", assetKey: "Peeker_Left" },
         { value: "peekerRight", label: "Peeker (Right)", assetKey: "Peeker_Right" },
-        { value: "peekerBottom", label: "Peeker (Bottom)", assetKey: "Peeker_Bottom" }
+        { value: "peekerBottom", label: "Peeker (Bottom)", assetKey: "Peeker_Bottom" },
+        { value: "peekerHead", label: "Peaker (Head)", assetKey: "Peeker_Head" }
       ],
       ipsc: [
         { value: "open", label: "Open", assetKey: "Open" },
@@ -936,6 +938,58 @@
         shadow: "0 1px 4px rgba(0, 0, 0, 0.68), 0 0 1px rgba(0, 0, 0, 0.5)"
       }
     };
+
+    const BUILT_IN_TARGET_PRESETS = [
+      {
+        id: "accelerator",
+        name: "Accelerator",
+        targetPresetState: {
+          targets: [
+            { id: 1, shape: "USPSA", type: "open", distanceValue: 7, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: -3.879192058592623, positionOrder: 0, collapsed: false },
+            { id: 2, shape: "USPSA", type: "open", distanceValue: 15, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: -0.6253588524788057, positionOrder: 1, collapsed: false },
+            { id: 3, shape: "USPSA", type: "open", distanceValue: 25, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: 1.4372314653103229, positionOrder: 2, collapsed: false }
+          ],
+          customSpacingsIn: [36, 36]
+        }
+      },
+      {
+        id: "designated-targets",
+        name: "Designated Targets",
+        targetPresetState: {
+          targets: [
+            { id: 4, shape: "USPSA", type: "open", distanceValue: 10, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: -7.951424480290566, positionOrder: 0, collapsed: true },
+            { id: 5, shape: "USPSA", type: "open", distanceValue: 7, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: -0.44169473558145816, positionOrder: 1, collapsed: true },
+            { id: 6, shape: "USPSA", type: "open", distanceValue: 15, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: 5.1300016875326655, positionOrder: 2, collapsed: true },
+            { id: 8, shape: "USPSA", type: "open", distanceValue: 20, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: -4.414538947474892, positionOrder: 3, collapsed: true }
+          ],
+          customSpacingsIn: [36, 36, 36]
+        }
+      },
+      {
+        id: "distance-changeup",
+        name: "Distance Changeup",
+        targetPresetState: {
+          targets: [
+            { id: 1, shape: "USPSA", type: "open", distanceValue: 5, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: -4.857877420045895, positionOrder: 0, collapsed: true },
+            { id: 2, shape: "USPSA", type: "open", distanceValue: 5, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: 4.695313602167622, positionOrder: 1, collapsed: true },
+            { id: 3, shape: "USPSA", type: "peekerHead", distanceValue: 15, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: -0.2795033800616283, positionOrder: 2, collapsed: false }
+          ],
+          customSpacingsIn: [36, 36]
+        }
+      },
+      {
+        id: "el-presidente",
+        name: "El Presidente",
+        targetPresetState: {
+          targets: [
+            { id: 1, shape: "USPSA", type: "open", distanceValue: 10, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: -4.857877420045895, positionOrder: 0, collapsed: true },
+            { id: 2, shape: "USPSA", type: "open", distanceValue: 10, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: -1.0243774200458955, positionOrder: 1, collapsed: true },
+            { id: 3, shape: "USPSA", type: "open", distanceValue: 10, distanceUnit: "yd", manualScreenOffsetIn: 0, manualScreenXIn: 2.8091225799541046, positionOrder: 2, collapsed: true }
+          ],
+          customSpacingsIn: [36, 36]
+        }
+      }
+    ];
 
     // =====================
     // UI State
@@ -1464,6 +1518,40 @@
       );
     }
 
+    function serializeTarget(target, fallbackId = 0) {
+      return {
+        id: sanitizeFiniteNumber(target && target.id, fallbackId),
+        shape: target && TARGET_DEFS[target.shape] ? target.shape : "USPSA",
+        type: String(target && target.type ? target.type : "open"),
+        distanceValue: sanitizeFiniteNumber(target && target.distanceValue, 7),
+        distanceUnit: target && target.distanceUnit === "m" ? "m" : "yd",
+        manualScreenOffsetIn: sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0),
+        manualScreenXIn: Number.isFinite(toNumber(target && target.manualScreenXIn)) ? toNumber(target && target.manualScreenXIn) : null,
+        positionOrder: sanitizeFiniteNumber(target && target.positionOrder, 0),
+        collapsed: Boolean(target && target.collapsed)
+      };
+    }
+
+    function normalizeImportedTargets(rawTargets) {
+      const normalizedTargets = Array.isArray(rawTargets)
+        ? rawTargets.map((target, index) => {
+            const normalizedTarget = serializeTarget(target, index + 1);
+            normalizedTarget.positionOrder = sanitizeFiniteNumber(target && target.positionOrder, index);
+            return normalizedTarget;
+          })
+        : [];
+
+      normalizedTargets.forEach((target) => normalizeTargetTypeForShape(target));
+      normalizedTargets
+        .slice()
+        .sort((a, b) => sanitizeFiniteNumber(a.positionOrder, 0) - sanitizeFiniteNumber(b.positionOrder, 0))
+        .forEach((target, index) => {
+          target.positionOrder = index;
+        });
+
+      return normalizedTargets;
+    }
+
     function getSerializableAppState() {
       return {
         calibration: {
@@ -1474,17 +1562,7 @@
           resWidthPx: sanitizeFiniteNumber(state.calibration.resWidthPx, 2560),
           resHeightPx: sanitizeFiniteNumber(state.calibration.resHeightPx, 1440)
         },
-        targets: state.targets.map((target) => ({
-          id: sanitizeFiniteNumber(target.id, 0),
-          shape: TARGET_DEFS[target.shape] ? target.shape : "USPSA",
-          type: String(target.type || "open"),
-          distanceValue: sanitizeFiniteNumber(target.distanceValue, 7),
-          distanceUnit: target.distanceUnit === "m" ? "m" : "yd",
-          manualScreenOffsetIn: sanitizeFiniteNumber(target.manualScreenOffsetIn, 0),
-          manualScreenXIn: Number.isFinite(toNumber(target.manualScreenXIn)) ? toNumber(target.manualScreenXIn) : null,
-          positionOrder: sanitizeFiniteNumber(target.positionOrder, 0),
-          collapsed: Boolean(target.collapsed)
-        })),
+        targets: state.targets.map((target) => serializeTarget(target)),
         newTargetShape: TARGET_DEFS[state.newTargetShape] ? state.newTargetShape : "USPSA",
         newTargetType: String(state.newTargetType || "open"),
         newTargetDistanceValue: sanitizeFiniteNumber(state.newTargetDistanceValue, 7),
@@ -1498,17 +1576,7 @@
 
     function getSerializableTargetPresetState() {
       return {
-        targets: state.targets.map((target) => ({
-          id: sanitizeFiniteNumber(target.id, 0),
-          shape: TARGET_DEFS[target.shape] ? target.shape : "USPSA",
-          type: String(target.type || "open"),
-          distanceValue: sanitizeFiniteNumber(target.distanceValue, 7),
-          distanceUnit: target.distanceUnit === "m" ? "m" : "yd",
-          manualScreenOffsetIn: sanitizeFiniteNumber(target.manualScreenOffsetIn, 0),
-          manualScreenXIn: Number.isFinite(toNumber(target.manualScreenXIn)) ? toNumber(target.manualScreenXIn) : null,
-          positionOrder: sanitizeFiniteNumber(target.positionOrder, 0),
-          collapsed: Boolean(target.collapsed)
-        })),
+        targets: state.targets.map((target) => serializeTarget(target)),
         customSpacingsIn: state.customSpacingsIn.map((gap) => sanitizeFiniteNumber(gap, 36))
       };
     }
@@ -1530,17 +1598,7 @@
           resWidthPx: sanitizeFiniteNumber(calibration.resWidthPx, parsedPreset.width || defaults.calibration.resWidthPx),
           resHeightPx: sanitizeFiniteNumber(calibration.resHeightPx, parsedPreset.height || defaults.calibration.resHeightPx)
         },
-        targets: Array.isArray(source.targets) ? source.targets.map((target, index) => ({
-          id: sanitizeFiniteNumber(target && target.id, index + 1),
-          shape: target && TARGET_DEFS[target.shape] ? target.shape : "USPSA",
-          type: String(target && target.type ? target.type : "open"),
-          distanceValue: sanitizeFiniteNumber(target && target.distanceValue, 7),
-          distanceUnit: target && target.distanceUnit === "m" ? "m" : "yd",
-          manualScreenOffsetIn: sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0),
-          manualScreenXIn: Number.isFinite(toNumber(target && target.manualScreenXIn)) ? toNumber(target && target.manualScreenXIn) : null,
-          positionOrder: sanitizeFiniteNumber(target && target.positionOrder, index),
-          collapsed: Boolean(target && target.collapsed)
-        })) : [],
+        targets: normalizeImportedTargets(source.targets),
         newTargetShape: source.newTargetShape && TARGET_DEFS[source.newTargetShape] ? source.newTargetShape : defaults.newTargetShape,
         newTargetType: String(source.newTargetType || defaults.newTargetType),
         newTargetDistanceValue: sanitizeFiniteNumber(source.newTargetDistanceValue, defaults.newTargetDistanceValue),
@@ -1553,42 +1611,17 @@
         backgroundMode: STAGE_BACKGROUNDS[source.backgroundMode] ? source.backgroundMode : defaults.backgroundMode
       };
 
-      normalized.targets.forEach((target) => normalizeTargetTypeForShape(target));
-      normalized.targets
-        .slice()
-        .sort((a, b) => sanitizeFiniteNumber(a.positionOrder, 0) - sanitizeFiniteNumber(b.positionOrder, 0))
-        .forEach((target, index) => {
-          target.positionOrder = index;
-        });
       return normalized;
     }
 
     function normalizeImportedTargetPresetState(rawState) {
       const source = rawState && typeof rawState === "object" ? rawState : {};
       const normalized = {
-        targets: Array.isArray(source.targets) ? source.targets.map((target, index) => ({
-          id: sanitizeFiniteNumber(target && target.id, index + 1),
-          shape: target && TARGET_DEFS[target.shape] ? target.shape : "USPSA",
-          type: String(target && target.type ? target.type : "open"),
-          distanceValue: sanitizeFiniteNumber(target && target.distanceValue, 7),
-          distanceUnit: target && target.distanceUnit === "m" ? "m" : "yd",
-          manualScreenOffsetIn: sanitizeFiniteNumber(target && target.manualScreenOffsetIn, 0),
-          manualScreenXIn: Number.isFinite(toNumber(target && target.manualScreenXIn)) ? toNumber(target && target.manualScreenXIn) : null,
-          positionOrder: sanitizeFiniteNumber(target && target.positionOrder, index),
-          collapsed: Boolean(target && target.collapsed)
-        })) : [],
+        targets: normalizeImportedTargets(source.targets),
         customSpacingsIn: Array.isArray(source.customSpacingsIn)
           ? source.customSpacingsIn.map((gap) => sanitizeFiniteNumber(gap, 36))
           : []
       };
-
-      normalized.targets.forEach((target) => normalizeTargetTypeForShape(target));
-      normalized.targets
-        .slice()
-        .sort((a, b) => sanitizeFiniteNumber(a.positionOrder, 0) - sanitizeFiniteNumber(b.positionOrder, 0))
-        .forEach((target, index) => {
-          target.positionOrder = index;
-        });
 
       return normalized;
     }
@@ -1606,19 +1639,8 @@
       }
     }
 
-    function applyAppState(rawState, options = {}) {
+    function finalizeAppliedState(options = {}) {
       const { persistSession = true, statusMessage = "" } = options;
-      const nextState = normalizeImportedAppState(rawState);
-      state.calibration = nextState.calibration;
-      state.targets = nextState.targets;
-      state.newTargetShape = nextState.newTargetShape;
-      state.newTargetType = nextState.newTargetType;
-      state.newTargetDistanceValue = nextState.newTargetDistanceValue;
-      state.newTargetDistanceUnit = nextState.newTargetDistanceUnit;
-      state.spacingMode = nextState.spacingMode;
-      state.customSpacingsIn = nextState.customSpacingsIn;
-      state.spacingCollapsed = nextState.spacingCollapsed;
-      state.backgroundMode = nextState.backgroundMode;
       normalizeTargetPositionOrders();
       syncCustomSpacingLength();
       targetIdCounter = Math.max(1, ...state.targets.map((target) => sanitizeFiniteNumber(target.id, 0) + 1));
@@ -1633,23 +1655,26 @@
       }
     }
 
+    function applyAppState(rawState, options = {}) {
+      const nextState = normalizeImportedAppState(rawState);
+      state.calibration = nextState.calibration;
+      state.targets = nextState.targets;
+      state.newTargetShape = nextState.newTargetShape;
+      state.newTargetType = nextState.newTargetType;
+      state.newTargetDistanceValue = nextState.newTargetDistanceValue;
+      state.newTargetDistanceUnit = nextState.newTargetDistanceUnit;
+      state.spacingMode = nextState.spacingMode;
+      state.customSpacingsIn = nextState.customSpacingsIn;
+      state.spacingCollapsed = nextState.spacingCollapsed;
+      state.backgroundMode = nextState.backgroundMode;
+      finalizeAppliedState(options);
+    }
+
     function applyTargetPresetState(rawState, options = {}) {
-      const { persistSession = true, statusMessage = "" } = options;
       const nextState = normalizeImportedTargetPresetState(rawState);
       state.targets = nextState.targets;
       state.customSpacingsIn = nextState.customSpacingsIn;
-      normalizeTargetPositionOrders();
-      syncCustomSpacingLength();
-      targetIdCounter = Math.max(1, ...state.targets.map((target) => sanitizeFiniteNumber(target.id, 0) + 1));
-      renderUI();
-      applySelectedStageBackground();
-      recalcAndRender();
-      if (persistSession) {
-        scheduleSessionSave();
-      }
-      if (statusMessage) {
-        setPresetStatus(statusMessage);
-      }
+      finalizeAppliedState(options);
     }
 
     function setRealWorldTargetSize(shape, widthIn, heightIn, options = {}) {
@@ -1726,16 +1751,15 @@
       localStorage.setItem(CALIBRATION_PRESET_STORAGE_KEY, JSON.stringify(presetMap));
     }
 
-    function renderCalibrationPresetList(selectedName = "") {
-      const presets = Object.keys(readCalibrationPresetMap()).sort((a, b) => a.localeCompare(b));
+    function renderNamedPresetList(selectEl, names, selectedName, placeholderText, emptyText) {
       const fragment = document.createDocumentFragment();
 
       const placeholder = document.createElement("option");
       placeholder.value = "";
-      placeholder.textContent = presets.length ? "Select a monitor calibration preset" : "No saved monitor calibration presets";
+      placeholder.textContent = names.length ? placeholderText : emptyText;
       fragment.appendChild(placeholder);
 
-      presets.forEach((name) => {
+      names.forEach((name) => {
         const option = document.createElement("option");
         option.value = name;
         option.textContent = name;
@@ -1743,8 +1767,19 @@
         fragment.appendChild(option);
       });
 
-      el.savedCalibrationPresets.replaceChildren(fragment);
-      el.savedCalibrationPresets.value = selectedName && presets.includes(selectedName) ? selectedName : "";
+      selectEl.replaceChildren(fragment);
+      selectEl.value = selectedName && names.includes(selectedName) ? selectedName : "";
+    }
+
+    function renderCalibrationPresetList(selectedName = "") {
+      const presets = Object.keys(readCalibrationPresetMap()).sort((a, b) => a.localeCompare(b));
+      renderNamedPresetList(
+        el.savedCalibrationPresets,
+        presets,
+        selectedName,
+        "Select a monitor calibration preset",
+        "No saved monitor calibration presets"
+      );
     }
 
     function readPresetMap() {
@@ -1762,34 +1797,78 @@
       localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presetMap));
     }
 
-    function renderPresetList(selectedName = "") {
-      const presets = Object.keys(readPresetMap()).sort((a, b) => a.localeCompare(b));
+    function getBuiltInTargetPresetMap() {
+      return new Map(BUILT_IN_TARGET_PRESETS.map((preset) => [preset.id, preset]));
+    }
+
+    function getBuiltInTargetPresetNames() {
+      return new Set(BUILT_IN_TARGET_PRESETS.map((preset) => preset.name));
+    }
+
+    function buildTargetPresetOptionValue(source, key) {
+      return `${source}:${key}`;
+    }
+
+    function parseTargetPresetOptionValue(value) {
+      const raw = String(value || "");
+      if (!raw) return { source: "", key: "" };
+      const splitIndex = raw.indexOf(":");
+      if (splitIndex < 0) return { source: "", key: raw };
+      return {
+        source: raw.slice(0, splitIndex),
+        key: raw.slice(splitIndex + 1)
+      };
+    }
+
+    function renderPresetList(selectedValue = "") {
+      const userPresets = Object.keys(readPresetMap()).sort((a, b) => a.localeCompare(b));
       const fragment = document.createDocumentFragment();
 
       const placeholder = document.createElement("option");
       placeholder.value = "";
-      placeholder.textContent = presets.length ? "Select a target array preset" : "No saved target array presets";
+      placeholder.textContent = "Select a target array preset";
       fragment.appendChild(placeholder);
 
-      presets.forEach((name) => {
+      if (BUILT_IN_TARGET_PRESETS.length > 0) {
+        const builtInHeader = document.createElement("option");
+        builtInHeader.value = "__built_in_header__";
+        builtInHeader.textContent = "--- Built-In Presets ---";
+        builtInHeader.disabled = true;
+        fragment.appendChild(builtInHeader);
+
+        BUILT_IN_TARGET_PRESETS.forEach((preset) => {
+          const option = document.createElement("option");
+          option.value = buildTargetPresetOptionValue("builtin", preset.id);
+          option.textContent = preset.name;
+          if (option.value === selectedValue) option.selected = true;
+          fragment.appendChild(option);
+        });
+      }
+
+      const userHeader = document.createElement("option");
+      userHeader.value = "__saved_header__";
+      userHeader.textContent = "--- User Saved Presets ---";
+      userHeader.disabled = true;
+      fragment.appendChild(userHeader);
+
+      userPresets.forEach((name) => {
         const option = document.createElement("option");
-        option.value = name;
+        option.value = buildTargetPresetOptionValue("user", name);
         option.textContent = name;
-        if (name === selectedName) option.selected = true;
+        if (option.value === selectedValue) option.selected = true;
         fragment.appendChild(option);
       });
 
       el.savedPresets.replaceChildren(fragment);
-      if (selectedName && presets.includes(selectedName)) {
-        el.savedPresets.value = selectedName;
-      } else {
+      el.savedPresets.value = selectedValue;
+      if (el.savedPresets.value !== selectedValue) {
         el.savedPresets.value = "";
       }
     }
 
     function saveCurrentSessionNow() {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
-        version: "1.2.1",
+        version: APP_VERSION,
         savedAt: new Date().toISOString(),
         appState: getSerializableAppState(),
         realWorldTargetSizes: getRealWorldTargetSizeSnapshot()
@@ -1847,6 +1926,39 @@
       }
     }
 
+    function sanitizeFilenamePart(name, fallbackName) {
+      return String(name || fallbackName || "Unnamed")
+        .trim()
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+        .replace(/\s+/g, "_");
+    }
+
+    function downloadJson(filename, payload) {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function readJsonFile(file, onSuccess, onFailure) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          onSuccess(JSON.parse(String(reader.result || "")));
+        } catch (_) {
+          onFailure();
+        }
+      };
+      reader.onerror = onFailure;
+      reader.readAsText(file);
+    }
+
     function saveCurrentCalibrationPreset() {
       const promptName = el.savedCalibrationPresets.value || "";
       const name = window.prompt("Enter a monitor calibration preset name:", promptName);
@@ -1857,7 +1969,7 @@
         return;
       }
       calibrationPresetMap[trimmedName] = {
-        version: "1.2.1",
+        version: APP_VERSION,
         savedAt: new Date().toISOString(),
         calibration: getCalibrationFromInputs()
       };
@@ -1894,80 +2006,95 @@
     }
 
     function saveNamedPreset() {
-      const promptName = el.savedPresets.value || "Preset";
+      const currentSelection = parseTargetPresetOptionValue(el.savedPresets.value);
+      const promptName = currentSelection.source === "user" ? currentSelection.key : "Preset";
       const name = window.prompt("Enter a target array preset name:", promptName);
       const trimmedName = String(name || "").trim();
       if (!trimmedName) return;
+      if (getBuiltInTargetPresetNames().has(trimmedName)) {
+        setPresetStatus(`"${trimmedName}" is reserved by a built-in preset. Choose a different name.`, true);
+        return;
+      }
       const presetMap = readPresetMap();
       if (presetMap[trimmedName] && !window.confirm(`Overwrite target array preset "${trimmedName}"?`)) {
         return;
       }
       presetMap[trimmedName] = {
-        version: "1.2.1",
+        version: APP_VERSION,
         savedAt: new Date().toISOString(),
         targetPresetState: getSerializableTargetPresetState()
       };
       writePresetMap(presetMap);
-      renderPresetList(trimmedName);
+      renderPresetList(buildTargetPresetOptionValue("user", trimmedName));
       setPresetStatus(`Saved preset "${trimmedName}".`);
       scheduleSessionSave();
     }
 
     function loadSelectedPreset() {
-      const name = el.savedPresets.value;
-      if (!name) {
+      const selectedPreset = parseTargetPresetOptionValue(el.savedPresets.value);
+      if (!selectedPreset.source || !selectedPreset.key) {
         setPresetStatus("Select a preset to load.", true);
         return;
       }
-      const preset = readPresetMap()[name];
+      if (selectedPreset.source === "builtin") {
+        const builtInPreset = getBuiltInTargetPresetMap().get(selectedPreset.key);
+        if (!builtInPreset || !builtInPreset.targetPresetState) {
+          setPresetStatus("Built-in preset was not found.", true);
+          renderPresetList();
+          return;
+        }
+        renderPresetList(buildTargetPresetOptionValue("builtin", builtInPreset.id));
+        applyTargetPresetState(builtInPreset.targetPresetState, { statusMessage: `Loaded built-in preset "${builtInPreset.name}".` });
+        return;
+      }
+      const preset = readPresetMap()[selectedPreset.key];
       const presetState = preset && (preset.targetPresetState || preset.appState || preset);
       if (!preset || !presetState) {
-        setPresetStatus(`Preset "${name}" was not found.`, true);
+        setPresetStatus(`Preset "${selectedPreset.key}" was not found.`, true);
         renderPresetList();
         return;
       }
-      renderPresetList(name);
-      applyTargetPresetState(presetState, { statusMessage: `Loaded preset "${name}".` });
+      renderPresetList(buildTargetPresetOptionValue("user", selectedPreset.key));
+      applyTargetPresetState(presetState, { statusMessage: `Loaded preset "${selectedPreset.key}".` });
     }
 
     function deleteSelectedPreset() {
-      const name = el.savedPresets.value;
-      if (!name) {
+      const selectedPreset = parseTargetPresetOptionValue(el.savedPresets.value);
+      if (!selectedPreset.source || !selectedPreset.key) {
         setPresetStatus("Select a preset to delete.", true);
         return;
       }
+      if (selectedPreset.source === "builtin") {
+        setPresetStatus("Built-in presets cannot be deleted.", true);
+        return;
+      }
       const presetMap = readPresetMap();
-      if (!presetMap[name]) {
-        setPresetStatus(`Preset "${name}" was not found.`, true);
+      if (!presetMap[selectedPreset.key]) {
+        setPresetStatus(`Preset "${selectedPreset.key}" was not found.`, true);
         renderPresetList();
         return;
       }
-      delete presetMap[name];
+      delete presetMap[selectedPreset.key];
       writePresetMap(presetMap);
       renderPresetList();
-      setPresetStatus(`Deleted preset "${name}".`);
+      setPresetStatus(`Deleted preset "${selectedPreset.key}".`);
       scheduleSessionSave();
     }
 
     function exportCurrentConfig() {
       const payload = {
-        version: "1.2.1",
+        version: APP_VERSION,
         exportedAt: new Date().toISOString(),
         targetPresetState: getSerializableTargetPresetState()
       };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const presetName = String(el.savedPresets.value || "Unnamed").trim() || "Unnamed";
-      const safePresetName = presetName
-        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
-        .replace(/\s+/g, "_");
-      link.href = url;
-      link.download = `DFTV_Targetarray_${safePresetName}.json`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      const selectedPreset = parseTargetPresetOptionValue(el.savedPresets.value);
+      const exportName = selectedPreset.source === "user"
+        ? selectedPreset.key
+        : selectedPreset.source === "builtin"
+          ? (getBuiltInTargetPresetMap().get(selectedPreset.key)?.name || "Unnamed")
+          : "Unnamed";
+      const safePresetName = sanitizeFilenamePart(exportName, "Unnamed");
+      downloadJson(`DFTV_Targetarray_${safePresetName}.json`, payload);
       setPresetStatus("Exported current configuration as JSON.");
     }
 
@@ -1975,32 +2102,20 @@
       const selectedName = String(el.savedCalibrationPresets.value || "").trim();
       const calibration = getCalibrationFromInputs();
       const payload = {
-        version: "1.2.1",
+        version: APP_VERSION,
         exportedAt: new Date().toISOString(),
         presetName: selectedName || "Current Calibration",
         calibration
       };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const safeName = String(selectedName || "Current_Calibration")
-        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
-        .replace(/\s+/g, "_");
-      link.href = url;
-      link.download = `DFTV_Calibration_${safeName}.json`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      const safeName = sanitizeFilenamePart(selectedName, "Current_Calibration");
+      downloadJson(`DFTV_Calibration_${safeName}.json`, payload);
       setPresetStatus("Exported monitor calibration.");
     }
 
     function importCalibrationPresetFromFile(file) {
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const parsed = JSON.parse(String(reader.result || ""));
+      readJsonFile(
+        file,
+        (parsed) => {
           const calibration = parsed && parsed.calibration ? parsed.calibration : parsed;
           if (!calibration || typeof calibration !== "object") {
             throw new Error("Invalid calibration payload");
@@ -2022,7 +2137,7 @@
             resHeightPx: sanitizeFiniteNumber(calibration.resHeightPx, state.calibration.resHeightPx)
           };
           calibrationPresetMap[trimmedName] = {
-            version: "1.2.1",
+            version: APP_VERSION,
             savedAt: new Date().toISOString(),
             calibration: normalizedCalibration
           };
@@ -2034,32 +2149,24 @@
           suppressCalibrationPresetReset = false;
           setPresetStatus(`Imported monitor calibration preset "${trimmedName}".`);
           scheduleSessionSave();
-        } catch (_) {
+        },
+        () => {
           setPresetStatus("Monitor calibration import failed. Choose a valid JSON export.", true);
         }
-      };
-      reader.onerror = () => {
-        setPresetStatus("Monitor calibration import failed. The file could not be read.", true);
-      };
-      reader.readAsText(file);
+      );
     }
 
     function importConfigFromFile(file) {
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const parsed = JSON.parse(String(reader.result || ""));
+      readJsonFile(
+        file,
+        (parsed) => {
           const presetState = parsed && (parsed.targetPresetState || parsed.appState) ? (parsed.targetPresetState || parsed.appState) : parsed;
           applyTargetPresetState(presetState, { statusMessage: `Imported configuration from ${file.name}.` });
-        } catch (_) {
+        },
+        () => {
           setPresetStatus("Import failed. Choose a valid JSON export.", true);
         }
-      };
-      reader.onerror = () => {
-        setPresetStatus("Import failed. The file could not be read.", true);
-      };
-      reader.readAsText(file);
+      );
     }
 
     function computePPI(resW, resH, diagonalIn) {
